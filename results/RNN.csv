@@ -1,0 +1,2 @@
+,accuracy_train_mean,accuracy_train_std,accuracy_test_1_mean,accuracy_test_1_std,accuracy_test_2_mean,accuracy_test_2_std,accuracy_test_combined_mean,accuracy_test_combined_std
+RNN,0.946627,0.07923282,0.90630734,0.12969485,0.9409667,0.07447889,0.9329237,0.087110266
