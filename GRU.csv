@@ -1,2 +1,2 @@
 ,accuracy_train_mean,accuracy_train_std,accuracy_test_1_mean,accuracy_test_1_std,accuracy_test_2_mean,accuracy_test_2_std,accuracy_test_combined_mean,accuracy_test_combined_std
-GRU,0.8846677,0.0964247,0.8047783,0.15782602,0.86164075,0.070505396,0.8481808,0.08952728
+GRU,0.8083518,0.059970353,0.67931956,0.096444964,0.8065959,0.03908068,0.77706987,0.052102197
