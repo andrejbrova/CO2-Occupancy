@@ -1,7 +1,5 @@
 import pathlib
 import sys
-
-import pandas as pd
 from tensorflow import keras
 from keras import layers
 from keras.models import Sequential
@@ -13,7 +11,6 @@ sys.path.append('C:/Users/Brova/Downloads/Smart2B-main/Smart2B-main')
 import datamodels as dm
 
 from utils import load_dataset, summarize_results
-
 
 
 def main():
@@ -51,15 +48,17 @@ def build_model(n_timesteps, n_features, target_shape, batch_size, epochs):
     def GRU_build_model(input_shape: tuple, target_shape: tuple) -> keras.Model:
         hidden_layer_size = 32
         return keras.Sequential(
-            [
-                keras.layers.Input(shape=input_shape),
-                keras.layers.Dropout(0.2),
-                keras.layers.GRU(units=64),
-                keras.layers.Dropout(0.2),
-                keras.layers.Dense(units=hidden_layer_size, activation='relu'),
-                keras.layers.Dense(units=target_shape[0], activation='sigmoid')
-            ]
-        )
+                [
+                    keras.Input(shape=input_shape),
+                    keras.layers.GRU(return_sequences=True, units=64),
+                    keras.layers.Dropout(0.2),
+                    keras.layers.GRU(return_sequences=True, units=64),
+                    keras.layers.GRU(units=64),
+                    keras.layers.Dropout(0.2),
+                    keras.layers.Dense(units=hidden_layer_size, activation='relu'),
+                    keras.layers.Dense(units=target_shape[0])
+                ]
+            )
 
     def compile_model(model: keras.Model):
         optimizer = keras.optimizers.Adam()
@@ -77,11 +76,12 @@ def build_model(n_timesteps, n_features, target_shape, batch_size, epochs):
             callbacks=callbacks_list
         )
 
-    model = dm.GRU(name='GRU',
-                y_scaler_class=dm.processing.Normalizer,
-                compile_function=compile_model,
-                build_model=GRU_build_model,
-                rain_function=train_model)
+    model = dm.GRU(
+        name='GRU',
+        y_scaler_class=dm.processing.Normalizer,
+        compile_function=compile_model,
+        build_function=GRU_build_model,
+        train_function=train_model)
 
     return model
 
