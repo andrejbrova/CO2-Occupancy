@@ -1,3 +1,5 @@
+import os
+import glob
 import pathlib
 import numpy as np
 import pandas as pd
@@ -101,6 +103,16 @@ def summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_co
     }
     return pd.DataFrame(result, index=[model_name])
 
+def concat_tables():
+    path = os.getcwd() + '/results/'
+    csv_files = glob.glob(os.path.join(path, "*.csv"))
+
+    tables = []
+    for result_table in csv_files:
+        if result_table != (path + 'results.csv'):
+            tables.append(pd.read_csv(result_table))
+    pd.concat(tables, axis=0).to_csv(path + 'results.csv')
+
 def get_feature_list():
     return [
         'Temperature',
@@ -109,3 +121,6 @@ def get_feature_list():
         'CO2',
         'HumidityRatio'
     ]
+
+if __name__ == '__main__':
+    concat_tables()
