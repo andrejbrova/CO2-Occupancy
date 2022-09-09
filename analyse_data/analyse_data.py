@@ -12,7 +12,29 @@ from utils import load_dataset, get_feature_list
 
 
 def main():
+    plot_correlation()
     plot_hourly_distributions()
+
+def plot_correlation():
+    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset()
+    X = pd.concat([X_train, X_test_1, X_test_2])
+    Y = pd.concat([y_train, y_test_1, y_test_2])
+    Y = Y.astype('category')
+    data = X.join(Y)
+
+    occupancy = data[data['Occupancy'] == 1]
+    non_occupancy = data[data['Occupancy'] == 0]
+
+    fig, ax = plt.subplots()
+    plt.scatter(x=occupancy['Temperature'], y=occupancy['Light'], color='blue', label='Occupancy')
+    plt.scatter(x=non_occupancy['Temperature'], y=non_occupancy['Light'], color='red', label='Non-Occupancy')
+    plt.title('Correlation between Light and Temperature')
+    plt.xlabel('Temperature [°C]')
+    plt.ylabel('Light')
+    plt.legend(loc='upper left')
+
+    plt.savefig(str(directory) + '/correlation_light_temp.png')
+    plt.show()
 
 def plot_hourly_distributions():
     X_train, X_test_1, X_test_2, *_ = load_dataset()
@@ -62,7 +84,7 @@ def plot_hourly_distributions():
     axs[0, 1].set_xlabel('Hour')
     axs[1, 1].set_xlabel('Hour')
     fig.suptitle('Hourly distributions of Temperature, CO2, Light and Humidity')
-    
+
     plt.savefig(str(directory) + '/hourly_distribution.png', dpi=144)
     plt.show()
 
