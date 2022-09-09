@@ -1,6 +1,7 @@
 import pathlib
 import sys
 import pandas as pd
+import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import cm
 
@@ -15,6 +16,7 @@ def main():
 
 def plot_hourly_distributions():
     X_train, X_test_1, X_test_2, *_ = load_dataset()
+
     features = [
         'Temperature',
         'Light',
@@ -31,6 +33,7 @@ def plot_hourly_distributions():
     X = pd.concat([X_train, X_test_1, X_test_2])
 
     X['hour'] = X.index.hour
+    X = X.set_index([X.index, 'hour'])
 
     fig, axs = plt.subplots(2, 2, figsize=(12, 8))
     fig.subplots_adjust(hspace=0.3)
@@ -42,12 +45,24 @@ def plot_hourly_distributions():
         else:
             x = it-2
             y = 1
+
+        X_hourly = X[feature].unstack(level=1)
+        X_list = []
+        for x_hour in X_hourly.columns:
+            X_list.append(X_hourly[x_hour].dropna().to_numpy())
+
+        bplot = axs[x,y].boxplot(x=X_list, widths=0.8, patch_artist=True)
         axs[x,y].set_ylabel(labels[it])
-        X.boxplot(column=feature, by='hour', ax=axs[x,y], widths=0.8)
+
+        cmap = plt.cm.ScalarMappable(cmap='rainbow')
+        test_mean = [x for x in range(len(X_list))]
+        for patch, color in zip(bplot['boxes'], cmap.to_rgba(test_mean)):
+            patch.set_facecolor(color)
     
     axs[0, 1].set_xlabel('Hour')
     axs[1, 1].set_xlabel('Hour')
     fig.suptitle('Hourly distributions of Temperature, CO2, Light and Humidity')
+    
     plt.savefig(str(directory) + '/hourly_distribution.png', dpi=144)
     plt.show()
 
