@@ -1,14 +1,21 @@
 import pathlib
 import sys
+import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
 from keras import layers
 from keras.models import Model
 from keras.regularizers import l2
+from keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
+from keras.metrics import BinaryAccuracy
+from tensorflow.keras.optimizers import Adam
 
 directory = pathlib.Path(__file__).parent
 sys.path.append(str(directory.parent))
+sys.path.append(str(directory.parent.parent) + '/Repos/datascience/') # Path to datamodel location
 
 from utils import load_dataset, summarize_results
+from datamodels import datamodels as dm
 
 # References:
 # https://www.geeksforgeeks.org/residual-networks-resnet-deep-learning/
@@ -18,7 +25,7 @@ from utils import load_dataset, summarize_results
 def main():
     batch_size = 32
     epochs = 100
-    REPEATS = 10
+    repeats = 10
     lookback_horizon = 48
     prediction_horizon = 1
     n = 3
@@ -37,30 +44,17 @@ def main():
     scores_test_1 = []
     scores_test_2 = []
     scores_test_combined = []
-    for run in range(REPEATS):
+    for run in range(repeats):
         print('Run ' + str(run + 1))
-        model = build_model(X_train.shape[1:], y_train.shape[1:], batch_size, epochs, depth, name)
-        acc_train, acc_test_1, acc_test_2, acc_test_combined = run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, model, lookback_horizon, prediction_horizon)
+        acc_train, acc_test_1, acc_test_2, acc_test_combined = run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, lookback_horizon, prediction_horizon, batch_size, epochs, depth, name)
         scores_train.append(acc_train)
         scores_test_1.append(acc_test_1)
         scores_test_2.append(acc_test_2)
         scores_test_combined.append(acc_test_combined)
-    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name).to_csv(directory + '/' + model_name + '.csv')
 
-def build_model(input_shape, target_shape, batch_size, epochs, depth, name):
+    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name).to_csv(str(directory.parent) + '/results/' + name + '.csv')
 
-    def lr_schedule(epoch):
-        lr = 1e-3
-        if epoch > 180:
-            lr *= 0.5e-3
-        elif epoch > 160:
-            lr *= 1e-3
-        elif epoch > 120:
-            lr *= 1e-2
-        elif epoch > 80:
-            lr *= 1e-1
-        print('Learning rate: ', lr)
-        return lr
+def build_model(input_shape, target_shape, depth):
 
     def resnet_layer(
         inputs,
@@ -72,27 +66,29 @@ def build_model(input_shape, target_shape, batch_size, epochs, depth, name):
         conv_first=True
         ):
         
-        conv=layers.Conv1D(
+        conv = layers.Conv1D(
             num_filters,
             kernel_size=kernel_size,
             strides=strides,
             padding='same',
             kernel_initializer='he_normal',
-            kernel_regularizer=l2(1e-4))
+            kernel_regularizer=l2(1e-4)
+        )
 
-        x=inputs
+        x = inputs
         if conv_first:
             x = conv(x)
             if batch_normalization:
-                x = BatchNormalization()(x)
+                x = layers.BatchNormalization()(x)
             if activation is not None:
-                x = Activation(activation)(x)
+                x = layers.Activation(activation)(x)
         else:
             if batch_normalization:
-                x = BatchNormalization()(x)
+                x = layers.BatchNormalization()(x)
             if activation is not None:
-                x = Activation(activation)(x)
+                x = layers.Activation(activation)(x)
             x = conv(x)
+
         return x
 
     def resnet_v1(input_shape, target_shape, depth):
@@ -111,32 +107,39 @@ def build_model(input_shape, target_shape, batch_size, epochs, depth, name):
                 strides = 1
                 if stack > 0 and res_block == 0:  # first layer but not first stack
                     strides = 2  # downsample
-                y = resnet_layer(inputs=x,
-                                num_filters=num_filters,
-                                strides=strides)
-                y = resnet_layer(inputs=y,
-                                num_filters=num_filters,
-                                activation=None)
+                y = resnet_layer(
+                    inputs=x,
+                    num_filters=num_filters,
+                    strides=strides
+                )
+                y = resnet_layer(
+                    inputs=y,
+                    num_filters=num_filters,
+                    activation=None
+                )
                 if stack > 0 and res_block == 0:  # first layer but not first stack
                     # linear projection residual shortcut connection to match
                     # changed dims
-                    x = resnet_layer(inputs=x,
-                                    num_filters=num_filters,
-                                    kernel_size=1,
-                                    strides=strides,
-                                    activation=None,
-                                    batch_normalization=False)
-                x = keras.layers.add([x, y])
+                    x = resnet_layer(
+                        inputs=x,
+                        num_filters=num_filters,
+                        kernel_size=1,
+                        strides=strides,
+                        activation=None,
+                        batch_normalization=False
+                    )
+                x = layers.add([x, y])
                 x = layers.Activation('relu')(x)
             num_filters *= 2
     
         # Add classifier on top.
         # v1 does not use BN after last shortcut connection-ReLU
-        x = layers.AveragePooling2D(pool_size=8)(x)
+        x = layers.AveragePooling1D(pool_size=8)(x)
         y = layers.Flatten()(x)
-        outputs = layers.Dense(target_shape[0],
-                        activation='sigmoid',
-                        kernel_initializer='he_normal')(y)
+        outputs = layers.Dense(
+            target_shape[0],
+            activation='sigmoid',
+            kernel_initializer='he_normal')(y)
     
         # Instantiate model.
         model = Model(inputs=inputs, outputs=outputs)
@@ -144,21 +147,33 @@ def build_model(input_shape, target_shape, batch_size, epochs, depth, name):
         return model
     
     def compile_model(model: Model):
-        optimizer = keras.optimizers.Adam(learning_rate = lr_schedule(0))
+        optimizer = Adam(learning_rate = lr_schedule(0))
         model.compile(loss='binary_crossentropy', optimizer='adam', metrics='binary_accuracy')
 
-    model = resnet_v1(input_shape = input_shape, target_shape=target_shape, depth = depth)
+    model = resnet_v1(input_shape=input_shape, target_shape=target_shape, depth=depth)
     compile_model(model)
     model.summary()
 
     return model
 
-def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, model, lookback_horizon, prediction_horizon):
+def lr_schedule(epoch):
+        lr = 1e-3
+        if epoch > 180:
+            lr *= 0.5e-3
+        elif epoch > 160:
+            lr *= 1e-3
+        elif epoch > 120:
+            lr *= 1e-2
+        elif epoch > 80:
+            lr *= 1e-1
+        print('Learning rate: ', lr)
+
+        return lr
+
+def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, lookback_horizon, prediction_horizon, batch_size, epochs, depth, name):
     x_scaler = dm.processing.Normalizer().fit(X_train)
 
-    model.set_x_scaler(x_scaler)
-
-    """X_train, y_train = dm.processing.shape.get_windows(
+    X_train, y_train = dm.processing.shape.get_windows(
         lookback_horizon, X_train.to_numpy(), prediction_horizon, y_train.to_numpy()
     )
 
@@ -172,9 +187,19 @@ def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y
 
     X_test_combined, y_test_combined = dm.processing.shape.get_windows(
         lookback_horizon, X_test_combined.to_numpy(), prediction_horizon, y_test_combined.to_numpy(),
-    )"""
+    )
 
-    def train_model(model, x_train, y_train) -> keras.callbacks.History:  
+    x_shape = X_train.shape[1:]
+    y_shape = y_train.shape[1:]
+
+    model = build_model(x_shape, y_shape, depth)
+
+    X_train = x_scaler.transform(X_train)
+    X_test_1 = x_scaler.transform(X_test_1)
+    X_test_2 = x_scaler.transform(X_test_2)
+    X_test_combined = x_scaler.transform(X_test_combined)
+
+    def train_model(model, x_train, y_train):# -> keras.callbacks.History:  
         lr_scheduler = LearningRateScheduler(lr_schedule)
         
         lr_reducer = ReduceLROnPlateau(factor = np.sqrt(0.1),
@@ -184,12 +209,14 @@ def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y
         
         callbacks = [lr_reducer, lr_scheduler]
         
-        return model.fit(x_train, y_train,
-                batch_size = batch_size,
-                epochs = epochs,
-                validation_split=0.2,
-                shuffle = True,
-                callbacks = callbacks)
+        return model.fit(
+            x_train, y_train,
+            batch_size = batch_size,
+            epochs = epochs,
+            validation_split=0.2,
+            shuffle = True,
+            callbacks = callbacks
+        )
 
     train_model(model, X_train, y_train)
 
@@ -198,14 +225,10 @@ def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y
     y_pred_test_2 = model.predict(X_test_2)
     y_pred_test_combined = model.predict(X_test_combined)
 
-    evaluation = BinaryAccuracy()
-    acc_train = evaluation(y_train, y_pred_train)
-    evaluation.reset_states()
-    acc_test_1 = evaluation(y_test_1, y_pred_test_1)
-    evaluation.reset_states()
-    acc_test_2 = evaluation(y_test_2, y_pred_test_2)
-    evaluation.reset_states()
-    acc_test_combined = evaluation(y_test_combined, y_pred_test_combined)
+    acc_train = BinaryAccuracy(y_train, y_pred_train)
+    acc_test_1 = BinaryAccuracy(y_test_1, y_pred_test_1)
+    acc_test_2 = BinaryAccuracy(y_test_2, y_pred_test_2)
+    acc_test_combined = BinaryAccuracy(y_test_combined, y_pred_test_combined)
 
     return acc_train, acc_test_1, acc_test_2, acc_test_combined
 

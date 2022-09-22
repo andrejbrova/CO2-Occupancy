@@ -49,7 +49,7 @@ def main():
         scores_test_1.append(acc_test_1)
         scores_test_2.append(acc_test_2)
         scores_test_combined.append(acc_test_combined)
-    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name).to_csv(directory + '/' + model_name + '.csv')
+    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name).to_csv(str(directory) + '/' + name + '.csv')
 
 def build_model(n_timesteps, n_features, target_shape, batch_size, epochs, name):
 
@@ -97,6 +97,19 @@ def build_model(n_timesteps, n_features, target_shape, batch_size, epochs, name)
                 keras.layers.Flatten(),
                 keras.layers.Dropout(0.2),
                 keras.layers.Dense(target_shape[0], activation='sigmoid')
+            ]
+        )
+
+    def autoencoder_model(input_shape: tuple, target_shape: tuple) -> keras.Model:
+        hidden_layer_size = 32
+        return keras.Sequential(
+            [
+                keras.layers.Input(shape=input_shape),
+                keras.layers.Dropout(0.2),
+                keras.layers.SimpleRNN(units=64),
+                keras.layers.Dropout(0.2),
+                keras.layers.Dense(units=hidden_layer_size, activation='relu'),
+                keras.layers.Dense(units=target_shape[0], activation='sigmoid')
             ]
         )
     
