@@ -1,15 +1,18 @@
 import os
 import glob
 import pathlib
+import sys
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
 directory = pathlib.Path(__file__).parent
+sys.path.append(str(directory.parent) + '/Repos/datascience/') # Path to datamodel location
 
-def load_dataset():
-    features = get_feature_list()
+from datamodels import datamodels as dm
 
+
+def load_features():
     training = pd.read_csv(str(directory) + '/occupancy_data/datatraining.txt', parse_dates=['date'])
     test1 = pd.read_csv(str(directory) + '/occupancy_data/datatest.txt', parse_dates=['date'])
     test2 = pd.read_csv(str(directory) + '/occupancy_data/datatest2.txt', parse_dates=['date'])
@@ -17,6 +20,13 @@ def load_dataset():
     training = training.set_index('date')
     test1 = test1.set_index('date')
     test2 = test2.set_index('date')
+
+    return training, test1, test2
+
+def load_dataset():
+    training, test1, test2 = load_features()
+
+    features = get_feature_list()
 
     X_train = training.loc[:,features]
     y_train = pd.DataFrame(training.loc[:,'Occupancy'])
@@ -29,6 +39,27 @@ def load_dataset():
 
     X_test_combined = pd.concat([X_test_1, X_test_2])
     y_test_combined = pd.concat([y_test_1, y_test_2])
+
+    return X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined
+
+def load_shaped_dataset(lookback_horizon, prediction_horizon):
+    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset()
+
+    X_train, y_train = dm.processing.shape.get_windows(
+        lookback_horizon, X_train.to_numpy(), prediction_horizon, y_train.to_numpy()
+    )
+
+    X_test_1, y_test_1 = dm.processing.shape.get_windows(
+        lookback_horizon, X_test_1.to_numpy(), prediction_horizon, y_test_1.to_numpy(),
+    )
+
+    X_test_2, y_test_2 = dm.processing.shape.get_windows(
+        lookback_horizon, X_test_2.to_numpy(), prediction_horizon, y_test_2.to_numpy(),
+    )
+
+    X_test_combined, y_test_combined = dm.processing.shape.get_windows(
+        lookback_horizon, X_test_combined.to_numpy(), prediction_horizon, y_test_combined.to_numpy(),
+    )
 
     return X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined
 

@@ -14,7 +14,7 @@ directory = pathlib.Path(__file__).parent
 sys.path.append(str(directory.parent))
 sys.path.append(str(directory.parent.parent) + '/Repos/datascience/') # Path to datamodel location
 
-from utils import load_dataset, summarize_results
+from utils import load_shaped_dataset, summarize_results
 from datamodels import datamodels as dm
 
 # References:
@@ -33,8 +33,6 @@ def main():
 
     depth = n * 6 + 2
 
-    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset()
-
     print(f'Training on {X_train.shape[0]} samples.')
     print(f'Testing on {X_test_1.shape[0]} samples (Test1).')
     print(f'Testing on {X_test_2.shape[0]} samples (Test2).')
@@ -46,7 +44,7 @@ def main():
     scores_test_combined = []
     for run in range(repeats):
         print('Run ' + str(run + 1))
-        acc_train, acc_test_1, acc_test_2, acc_test_combined = run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, lookback_horizon, prediction_horizon, batch_size, epochs, depth, name)
+        acc_train, acc_test_1, acc_test_2, acc_test_combined = run_model(lookback_horizon, prediction_horizon, batch_size, epochs, depth, name)
         scores_train.append(acc_train)
         scores_test_1.append(acc_test_1)
         scores_test_2.append(acc_test_2)
@@ -170,24 +168,10 @@ def lr_schedule(epoch):
 
         return lr
 
-def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, lookback_horizon, prediction_horizon, batch_size, epochs, depth, name):
+def run_model(lookback_horizon, prediction_horizon, batch_size, epochs, depth, name):
     x_scaler = dm.processing.Normalizer().fit(X_train)
 
-    X_train, y_train = dm.processing.shape.get_windows(
-        lookback_horizon, X_train.to_numpy(), prediction_horizon, y_train.to_numpy()
-    )
-
-    X_test_1, y_test_1 = dm.processing.shape.get_windows(
-        lookback_horizon, X_test_1.to_numpy(), prediction_horizon, y_test_1.to_numpy(),
-    )
-
-    X_test_2, y_test_2 = dm.processing.shape.get_windows(
-        lookback_horizon, X_test_2.to_numpy(), prediction_horizon, y_test_2.to_numpy(),
-    )
-
-    X_test_combined, y_test_combined = dm.processing.shape.get_windows(
-        lookback_horizon, X_test_combined.to_numpy(), prediction_horizon, y_test_combined.to_numpy(),
-    )
+    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_shaped_dataset(lookback_horizon, prediction_horizon)
 
     x_shape = X_train.shape[1:]
     y_shape = y_train.shape[1:]
