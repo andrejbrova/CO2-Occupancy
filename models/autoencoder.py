@@ -5,7 +5,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from keras.layers import Input, Dense
 from keras.models import Model
-from keras.regularizers import l2
+from keras.regularizers import l1, l2
 from keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
 from keras.metrics import BinaryAccuracy
 from tensorflow.keras.optimizers import Adam
@@ -22,9 +22,13 @@ from datamodels import datamodels as dm
 # https://towardsdatascience.com/using-lstm-autoencoders-on-multidimensional-time-series-data-f5a7a51b29a1
 # https://medium.com/analytics-vidhya/building-the-simplest-auto-encoder-in-keras-b7f21f33bef0
 
+# https://www.datacamp.com/tutorial/autoencoder-classifier-python
+# https://machinelearningmastery.com/autoencoder-for-classification/
+# https://www.geeksforgeeks.org/ml-classifying-data-using-an-auto-encoder/
+
 
 def main():
-    batch_size = 32
+    batch_size = 16
     epochs = 30
     repeats = 2
     lookback_horizon = 48
@@ -45,25 +49,35 @@ def main():
 
     summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name).to_csv(str(directory.parent) + '/results/' + name + '.csv')
 
-def build_model(input_shape):
+def build_model(inputinput_shape, target_shape):
 
     def autoencoder(input_shape):
         hidden_size = 128
-        code_size = 32
+        code_size = 16
 
-        x = Input(shape=input_shape)
-        encoder = Dense(hidden_size, activation='relu')(x)
-        code = Dense(code_size, activation='relu')(encoder)
-        decoder = Dense(hidden_size, activation='relu')(code)
-        y = Dense(input_shape[1], activation='sigmoid')(decoder)
+        input_layer = Input(shape=input_shape)
 
-        model = Model(inputs=x, outputs=y)
+        # Encoder
+        encoded = Dense(hidden_size, activation='relu', activity_regularizer = l1(10e-5))(input_layer)
+        encoded = Dense(hidden_size / 2, activation='relu', activity_regularizer = l1(10e-5))(encoded)
+        encoded = Dense(hidden_size / 4, activation='relu', activity_regularizer = l1(10e-5))(encoded)
+        encoded = Dense(code_size, activation='relu', activity_regularizer = l1(10e-5))(encoded)
+
+        # Decoder
+        decoded = Dense(hidden_size / 4, activation='relu')(encoded)
+        decoded = Dense(hidden_size / 2, activation='relu')(decoded)
+        decoded = Dense(hidden_size, activation='relu')(decoded)
+
+        # Output
+        output_layer = Dense(input_shape[1], activation='relu')(decoded)
+
+        model = Model(inputs=input_layer, outputs=output_layer)
 
         return model
     
     def compile_model(model: Model):
         optimizer = Adam()
-        model.compile(loss='mse', optimizer='adam', metrics='binary_accuracy')
+        model.compile(loss='mse', optimizer='adam', metrics='mse')
 
     model = autoencoder(input_shape=input_shape)
     compile_model(model)
@@ -71,36 +85,28 @@ def build_model(input_shape):
 
     return model
 
+def build_classifier(autoencoder):
+    hidden_representation = Sequential()
+    hidden_representation.add(autoencoder.layers[0])
+    hidden_representation.add(autoencoder.layers[1])
+    hidden_representation.add(autoencoder.layers[2])
+    hidden_representation.add(autoencoder.layers[3])
+    hidden_representation.add(autoencoder.layers[4])
+
 def run_model(lookback_horizon, prediction_horizon, batch_size, epochs, name):
-    training, test1, test2 = load_features()
-    test_combined = pd.concat([test1, test2])
+    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_shaped_dataset(lookback_horizon, prediction_horizon)
 
-    training = dm.processing.shape.get_windows(
-        lookback_horizon, training.to_numpy(), prediction_horizon
-    )
+    x_shape = X_train.shape[1:]
+    y_shape = y_train.shape[1:]
 
-    test1 = dm.processing.shape.get_windows(
-        lookback_horizon, test1.to_numpy(), prediction_horizon
-    )
+    model = build_model(x_shape, y_shape)
 
-    test2 = dm.processing.shape.get_windows(
-        lookback_horizon, test2.to_numpy(), prediction_horizon
-    )
+    x_scaler = dm.processing.Normalizer().fit(X_train)
 
-    test_combined = dm.processing.shape.get_windows(
-        lookback_horizon, test_combined.to_numpy(), prediction_horizon
-    )
-
-    shape = training.shape[1:]
-
-    model = build_model(shape)
-
-    x_scaler = dm.processing.Normalizer().fit(training)
-
-    training = x_scaler.transform(training)
-    test1 = x_scaler.transform(test1)
-    test2 = x_scaler.transform(test2)
-    test_combined = x_scaler.transform(test_combined)
+    X_train = x_scaler.transform(X_train)
+    X_test_1 = x_scaler.transform(X_test_1)
+    X_test_2 = x_scaler.transform(X_test_2)
+    X_test_combined = x_scaler.transform(X_test_combined)
 
     def train_model(model, x_train):# -> keras.callbacks.History:  
         
@@ -113,6 +119,10 @@ def run_model(lookback_horizon, prediction_horizon, batch_size, epochs, name):
         )
 
     train_model(model, training)
+
+    classifier = build_classifier(model)
+
+    encoded = classifier.predict(X_train)
 
     pred_train = model.predict(training)
     pred_test_1 = model.predict(test1)

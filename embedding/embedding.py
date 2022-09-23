@@ -17,10 +17,12 @@ from keras.layers.embeddings import Embedding
 from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 
 directory = pathlib.Path(__file__).parent
-sys.path.append(str(directory.parent) + '/Repos/datascience/')
+sys.path.append(str(directory.parent))
+sys.path.append(str(directory.parent.parent) + '/Repos/datascience/')
 
 from utils import get_embeddings, summarize_results
 from datamodels import datamodels as dm
+
 
 def main():
     batch_size = 32
@@ -29,11 +31,16 @@ def main():
     lookback_horizon = 48
     prediction_horizon = 1
     embedding = True
-    model_name = 'CNN_embedding'
+    model_name = 'GRU'
 
-    run_embedding(batch_size, epochs, repeats, model_name)
+    models = {
+        'CNN': layers_CNN,
+        'GRU': layers_GRU
+    }
 
-def run_embedding(batch_size, epochs, repeats, model_name):
+    run_embedding(batch_size, epochs, repeats, models[model_name], model_name)
+
+def run_embedding(batch_size, epochs, repeats, model, model_name):
     X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, encoders = get_embeddings()
 
     cat_vars = [
@@ -46,7 +53,7 @@ def run_embedding(batch_size, epochs, repeats, model_name):
     cat_sizes = [(c, len(X_train[i].cat.categories)) for i, c in enumerate(cat_vars)]
     embedding_sizes = [(c, min(50, (c + 1) // 2)) for _, c in cat_sizes]
 
-    def CNN_embedding(input_shape: tuple, target_shape: tuple) -> keras.Model:
+    def build_model(input_shape: tuple, target_shape: tuple) -> keras.Model:
         inputs = []
         embed_layers = []
         for (c, (in_size, out_size)) in zip(cat_vars, embedding_sizes):
@@ -65,14 +72,8 @@ def run_embedding(batch_size, epochs, repeats, model_name):
         x = Concatenate()([embed, cont_input])
         x = keras.layers.Reshape((9, 1))(x)
 
-        x = keras.layers.Conv1D(filters=32, kernel_size=3, activation="relu")(x)
-        x = keras.layers.Conv1D(filters=32, kernel_size=3, activation="relu")(x)
-        x = keras.layers.Conv1D(filters=32, kernel_size=3, activation="relu")(x)
-        x = keras.layers.Dropout(0.2)(x)
-        x = keras.layers.Conv1D(filters=32, kernel_size=3, activation="relu")(x)
-        x = keras.layers.Dense(units=32, activation="relu")(x)
-        x = keras.layers.Flatten()(x)
-        x = keras.layers.Dropout(0.2)(x)
+        x = model(x)
+
         x = keras.layers.Dense(target_shape[0], activation='sigmoid')(x)
 
         return Model(inputs=inputs, outputs=x)
@@ -119,7 +120,7 @@ def run_embedding(batch_size, epochs, repeats, model_name):
     for run in range(repeats):
         print('Run ' + str(run + 1))
 
-        model = CNN_embedding((1,), (1,))
+        model = build_model((1,), (1,))
         optimizer = keras.optimizers.Adam()
         model.compile(loss='binary_crossentropy', optimizer='adam', metrics='binary_accuracy')
         print(model.summary())
@@ -132,26 +133,68 @@ def run_embedding(batch_size, epochs, repeats, model_name):
         scores_test_1.append(acc_test_1)
         scores_test_2.append(acc_test_2)
         scores_test_combined.append(acc_test_combined)
-    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name).to_csv(str(directory) + '/results/' + model_name + '.csv')
+    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name).to_csv(str(directory) + '/' + model_name + '_embedding.csv')
     
+    plot_embedding(models, encoders, 'Weekday', scores_test_combined, model_name)
+
+def plot_embedding(models, encoders, category, scores_test_combined, model_name):
+    # Find best and worst model
     max_value = max(scores_test_combined)
     max_value_index = scores_test_combined.index(max_value)
-    plot_embedding(models[max_value_index], encoders, 'Weekday', model_name)
+    best = models[max_value_index]
+    min_value = min(scores_test_combined)
+    min_value_index = scores_test_combined.index(min_value)
+    worst = models[min_value_index]
+    models_to_plot = [best, worst]
+    colors = ['green', 'red']
+    labels = ['Best Model', 'Worst Model']
 
-def plot_embedding(model, encoders, category, model_name):
-    embedding_layer = model.get_layer(category)
-    weights = embedding_layer.get_weights()[0]
-    pca = PCA(n_components=2)
-    weights = pca.fit_transform(weights)
-    weights_t = weights.T
     fig, ax = plt.subplots(figsize=(8, 8 * 3 / 4))
-    ax.scatter(weights_t[0], weights_t[1])
-    for i, day in enumerate(encoders[category].classes_):
-        ax.annotate(day, (weights_t[0, i], weights_t[1, i]))
-        fig.tight_layout()
 
-    plt.savefig(str(directory) + '/results/' + model_name + '.png')
+    for it, model in enumerate(models_to_plot):
+        embedding_layer = model.get_layer(category)
+        weights = embedding_layer.get_weights()[0]
+        pca = PCA(n_components=2)
+        weights = pca.fit_transform(weights)
+        weights_t = weights.T
+
+        ax.scatter(weights_t[0], weights_t[1], c=colors[it], label=labels[it])
+        for i, day in enumerate(encoders[category].classes_):
+            ax.annotate(day, (weights_t[0, i], weights_t[1, i]))
+            #fig.tight_layout()
+
+    plt.title('PCA of the weights of the embedding "Weekday" layer')
+    plt.xlabel('PC1')
+    plt.ylabel('PC2')
+    plt.legend()
+    plt.savefig(str(directory) + '/' + model_name + '_embedding.png')
     #plt.show()
+
+# Layers
+
+def layers_CNN(x):
+    x = keras.layers.Conv1D(filters=32, kernel_size=3, activation="relu")(x)
+    x = keras.layers.Conv1D(filters=32, kernel_size=3, activation="relu")(x)
+    x = keras.layers.Conv1D(filters=32, kernel_size=3, activation="relu")(x)
+    x = keras.layers.Dropout(0.2)(x)
+    x = keras.layers.Conv1D(filters=32, kernel_size=3, activation="relu")(x)
+    x = keras.layers.Dense(units=32, activation="relu")(x)
+    x = keras.layers.Flatten()(x)
+    x = keras.layers.Dropout(0.2)(x)
+    
+    return x
+
+def layers_GRU(x):
+    hidden_layer_size = 32
+
+    x = keras.layers.GRU(return_sequences=True, units=64)(x)
+    x = keras.layers.Dropout(0.2)(x)
+    x = keras.layers.GRU(return_sequences=True, units=64)(x)
+    x = keras.layers.GRU(units=64)(x)
+    x = keras.layers.Dropout(0.2)(x)
+    x = keras.layers.Dense(units=hidden_layer_size, activation='relu')(x)
+
+    return x
 
 if __name__ == '__main__':
     main()
