@@ -1,2 +1,2 @@
 ,accuracy_train_mean,accuracy_train_std,accuracy_test_1_mean,accuracy_test_1_std,accuracy_test_2_mean,accuracy_test_2_std,accuracy_test_combined_mean,accuracy_test_combined_std
-autoencoder,0.9889476,0.0,0.9752345,0.0,0.9586752,5.9604645e-08,0.96222913,5.9604645e-08
+CNN_+hist_co2,0.9870876,6.181002e-05,0.96118546,0.008604199,0.977015,0.011853249,0.9735161,0.011119187

@@ -33,10 +33,10 @@ def main():
 
     depth = n * 6 + 2
 
-    print(f'Training on {X_train.shape[0]} samples.')
+    """print(f'Training on {X_train.shape[0]} samples.')
     print(f'Testing on {X_test_1.shape[0]} samples (Test1).')
     print(f'Testing on {X_test_2.shape[0]} samples (Test2).')
-    print(f'input: {X_train.shape[-1]} features ({X_train.columns.tolist()}).')
+    print(f'input: {X_train.shape[-1]} features ({X_train.columns.tolist()}).')"""
 
     scores_train = []
     scores_test_1 = []
@@ -169,10 +169,12 @@ def lr_schedule(epoch):
         return lr
 
 def run_model(lookback_horizon, prediction_horizon, batch_size, epochs, depth, name):
-    x_scaler = dm.processing.Normalizer().fit(X_train)
+    
 
     X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_shaped_dataset(lookback_horizon, prediction_horizon)
 
+    x_scaler = dm.processing.Normalizer().fit(X_train)
+    
     x_shape = X_train.shape[1:]
     y_shape = y_train.shape[1:]
 
@@ -209,10 +211,10 @@ def run_model(lookback_horizon, prediction_horizon, batch_size, epochs, depth, n
     y_pred_test_2 = model.predict(X_test_2)
     y_pred_test_combined = model.predict(X_test_combined)
 
-    acc_train = BinaryAccuracy(y_train, y_pred_train)
-    acc_test_1 = BinaryAccuracy(y_test_1, y_pred_test_1)
-    acc_test_2 = BinaryAccuracy(y_test_2, y_pred_test_2)
-    acc_test_combined = BinaryAccuracy(y_test_combined, y_pred_test_combined)
+    acc_train = BinaryAccuracy()(y_train, y_pred_train)
+    acc_test_1 = BinaryAccuracy()(y_test_1, y_pred_test_1)
+    acc_test_2 = BinaryAccuracy()(y_test_2, y_pred_test_2)
+    acc_test_combined = BinaryAccuracy()(y_test_combined, y_pred_test_combined)
 
     return acc_train, acc_test_1, acc_test_2, acc_test_combined
 

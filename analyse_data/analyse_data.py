@@ -12,7 +12,7 @@ from utils import load_dataset, get_feature_list
 
 
 def main():
-    plot_correlation()
+    #plot_correlation()
     plot_hourly_distributions()
 
 def plot_correlation():
@@ -74,6 +74,7 @@ def plot_hourly_distributions():
             X_list.append(X_hourly[x_hour].dropna().to_numpy())
 
         bplot = axs[x,y].boxplot(x=X_list, widths=0.8, patch_artist=True)
+        axs[x,y].set_title(features[it])
         axs[x,y].set_ylabel(labels[it])
 
         cmap = plt.cm.ScalarMappable(cmap='rainbow')
@@ -81,7 +82,7 @@ def plot_hourly_distributions():
         for patch, color in zip(bplot['boxes'], cmap.to_rgba(test_mean)):
             patch.set_facecolor(color)
     
-    axs[0, 1].set_xlabel('Hour')
+    axs[1, 0].set_xlabel('Hour')
     axs[1, 1].set_xlabel('Hour')
     fig.suptitle('Hourly distributions of Temperature, CO2, Light and Humidity')
 
