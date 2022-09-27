@@ -1,0 +1,2 @@
+,accuracy_train_mean,accuracy_train_std,accuracy_test_1_mean,accuracy_test_1_std,accuracy_test_2_mean,accuracy_test_2_std,accuracy_test_combined_mean,accuracy_test_combined_std
+LSTM_embedding,0.96545506,0.027235346,0.94292676,0.028456751,0.917945,0.027338792,0.92330676,0.027280511
