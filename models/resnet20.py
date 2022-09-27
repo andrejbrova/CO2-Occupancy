@@ -24,8 +24,8 @@ from datamodels import datamodels as dm
 
 def main():
     batch_size = 32
-    epochs = 100
-    repeats = 10
+    epochs = 50 # 100
+    repeats = 5 # 10
     lookback_horizon = 48
     prediction_horizon = 1
     n = 3

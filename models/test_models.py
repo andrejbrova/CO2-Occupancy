@@ -33,7 +33,8 @@ def main():
     model_name = 'CNN'
 
     models = {
-        'CNN': dm.ConvolutionNetwork,
+        'CNN': (dm.ConvolutionNetwork, layers_CNN),
+        'SRNN': (dm.RecurrentNetwork, layers_SRNN)
     }
 
     X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_shaped_dataset(lookback_horizon, prediction_horizon, historical_co2)
@@ -60,25 +61,7 @@ def main():
         model_name = model_name + '_+hist_co2'
     summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name).to_csv(str(directory.parent) + '/results/' + model_name + '.csv')
 
-def build_model(n_timesteps, n_features, target_shape, batch_size, epochs, model, name):
-
-    def SRNN_build_model(input_shape: tuple, target_shape: tuple) -> keras.Model:
-        hidden_layer_size = 32
-        return keras.Sequential(
-            [
-                keras.layers.Input(shape=input_shape),
-                keras.layers.SimpleRNN(return_sequences=True, units=64),
-                keras.layers.SimpleRNN(return_sequences=True, units=64),
-                keras.layers.Dropout(0.2),
-                keras.layers.SimpleRNN(return_sequences=True, units=64),
-                keras.layers.SimpleRNN(return_sequences=True, units=64),
-                keras.layers.SimpleRNN(units=64),
-                keras.layers.Dropout(0.2),
-                #keras.layers.SimpleRNN(units=64),
-                keras.layers.Dense(units=hidden_layer_size, activation='relu'),
-                keras.layers.Dense(units=target_shape[0], activation='sigmoid')
-            ]
-        )
+def build_model(n_timesteps, n_features, target_shape, batch_size, epochs, model_type, name):
     
     def compile_model(model: keras.Model):
         optimizer = keras.optimizers.Adam()
@@ -96,18 +79,11 @@ def build_model(n_timesteps, n_features, target_shape, batch_size, epochs, model
             callbacks=callbacks_list
         )
 
-    """model = dm.RecurrentNetwork(
+    model = model_type(1)(
         name='SIMPLE ' + name,
         y_scaler_class=dm.processing.Normalizer,
         compile_function=compile_model,
-        build_function=SRNN_build_model,
-        train_function=train_model)"""
-
-    model = model(
-        name='SIMPLE ' + name,
-        y_scaler_class=dm.processing.Normalizer,
-        compile_function=compile_model,
-        build_function=layers_CNN,
+        build_function=model_type(2),
         train_function=train_model)
 
     return model
@@ -151,7 +127,25 @@ def layers_CNN(input_shape: tuple, target_shape: tuple) -> keras.Model:
         keras.layers.Flatten(),
         keras.layers.Dropout(0.2),
         keras.layers.Dense(target_shape[0], activation='sigmoid')
-])
+    ])
+
+def layers_SRNN(input_shape: tuple, target_shape: tuple) -> keras.Model:
+    hidden_layer_size = 32
+    return keras.Sequential(
+        [
+            keras.layers.Input(shape=input_shape),
+            keras.layers.SimpleRNN(return_sequences=True, units=64),
+            keras.layers.SimpleRNN(return_sequences=True, units=64),
+            keras.layers.Dropout(0.2),
+            keras.layers.SimpleRNN(return_sequences=True, units=64),
+            keras.layers.SimpleRNN(return_sequences=True, units=64),
+            keras.layers.SimpleRNN(units=64),
+            keras.layers.Dropout(0.2),
+            #keras.layers.SimpleRNN(units=64),
+            keras.layers.Dense(units=hidden_layer_size, activation='relu'),
+            keras.layers.Dense(units=target_shape[0], activation='sigmoid')
+        ]
+    )
 
 if __name__ == '__main__':
     main()
