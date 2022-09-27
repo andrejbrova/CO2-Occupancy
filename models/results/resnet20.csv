@@ -1,2 +1,2 @@
 ,accuracy_train_mean,accuracy_train_std,accuracy_test_1_mean,accuracy_test_1_std,accuracy_test_2_mean,accuracy_test_2_std,accuracy_test_combined_mean,accuracy_test_combined_std
-resnet20,0.9780702,0.00030887127,0.9508792,0.011659026,0.87715137,0.04411009,0.8925453,0.031775534
+resnet20,0.93615025,0.064937375,0.91376144,0.05956466,0.8294342,0.054318674,0.8465394,0.046645205

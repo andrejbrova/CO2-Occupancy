@@ -23,7 +23,7 @@ def load_features():
 
     return training, test1, test2
 
-def load_dataset(historical_co2=False):
+def load_dataset(historical_co2=False, normalize=False):
     training, test1, test2 = load_features()
 
     features = get_feature_list()
@@ -48,10 +48,18 @@ def load_dataset(historical_co2=False):
     X_test_combined = pd.concat([X_test_1, X_test_2])
     y_test_combined = pd.concat([y_test_1, y_test_2])
 
+    if normalize:
+        x_scaler = dm.processing.Normalizer().fit(X_train)
+
+        X_train = x_scaler.transform(X_train)
+        X_test_1 = x_scaler.transform(X_test_1)
+        X_test_2 = x_scaler.transform(X_test_2)
+        X_test_combined = x_scaler.transform(X_test_combined)
+
     return X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined
 
-def load_shaped_dataset(lookback_horizon, prediction_horizon, historical_co2=False):
-    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(historical_co2)
+def load_shaped_dataset(lookback_horizon, prediction_horizon, historical_co2=False, normalize=False):
+    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(historical_co2, normalize)
 
     X_train, y_train = dm.processing.shape.get_windows(
         lookback_horizon, X_train.to_numpy(), prediction_horizon, y_train.to_numpy()

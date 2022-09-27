@@ -1,5 +1,10 @@
-import pathlib
+from pathlib import Path
 import sys
+
+ROOT_DIR = Path(__file__).parents[1]
+sys.path.append(str(ROOT_DIR))
+sys.path.append(str(ROOT_DIR.parent) + '/Repos/datascience/') # Path to datamodel location
+
 from matplotlib import pyplot as plt
 from tensorflow import keras
 from keras import layers
@@ -16,12 +21,9 @@ from keras.layers import Dropout, Dense, Input, Reshape
 from keras.layers.embeddings import Embedding
 from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 
-directory = pathlib.Path(__file__).parent
-sys.path.append(str(directory.parent))
-sys.path.append(str(directory.parent) + '/Repos/datascience/') # Path to datamodel location
-
 from utils import load_shaped_dataset, summarize_results
 from datamodels import datamodels as dm
+
 
 def main():
     BATCH_SIZE = 32
@@ -59,7 +61,7 @@ def main():
     
     if historical_co2:
         model_name = model_name + '_+hist_co2'
-    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name).to_csv(str(directory.parent) + '/results/' + model_name + '.csv')
+    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name).to_csv('./results/' + model_name + '.csv')
 
 def build_model(n_timesteps, n_features, target_shape, batch_size, epochs, model_type, name):
     

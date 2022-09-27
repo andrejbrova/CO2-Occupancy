@@ -50,7 +50,7 @@ def main():
         scores_test_2.append(acc_test_2)
         scores_test_combined.append(acc_test_combined)
 
-    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name).to_csv(str(directory.parent) + '/results/' + name + '.csv')
+    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name).to_csv(str(directory) + '/results/' + name + '.csv')
 
 def build_model(input_shape, target_shape, depth):
 
