@@ -23,7 +23,11 @@ def load_features():
 
     return training, test1, test2
 
-def load_dataset(historical_co2=False, normalize=False):
+def load_dataset(
+    historical_co2=False,
+    normalize=False,
+    embedding=False
+    ):
     training, test1, test2 = load_features()
 
     features = get_feature_list()
@@ -55,6 +59,9 @@ def load_dataset(historical_co2=False, normalize=False):
         X_test_1 = x_scaler.transform(X_test_1)
         X_test_2 = x_scaler.transform(X_test_2)
         X_test_combined = x_scaler.transform(X_test_combined)
+
+    if embedding:
+        X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, _ = get_embeddings()
 
     return X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined
 
@@ -135,10 +142,24 @@ def get_embeddings():
 
     return X_array, X_test_1_array, X_test_2_array, X_test_combined_array, y_train, y_test_1, y_test_2, y_test_combined, encoders
 
-def summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name):
+def summarize_results(
+    scores_train,
+    scores_test_1,
+    scores_test_2,
+    scores_test_combined,
+    batch_size='?',
+    epochs='?',
+    repeats='?',
+    embedding='?',
+    model_name='?'
+    ):
     print(scores_train)
     print(scores_test_1)
     result = {
+        'batch size': batch_size,
+        'epochs': epochs,
+        'repeats': repeats,
+        'embedding': embedding,
         'accuracy_train_mean': np.mean(scores_train),
         'accuracy_train_std': np.std(scores_train),
         'accuracy_test_1_mean': np.mean(scores_test_1),
@@ -160,14 +181,21 @@ def concat_tables():
             tables.append(pd.read_csv(result_table))
     pd.concat(tables, axis=0).to_csv(path + 'results.csv')
 
-def get_feature_list():
-    return [
-        'Temperature',
-        'Humidity',
-        'Light',
-        'CO2',
-        'HumidityRatio'
-    ]
+def get_feature_list(set='full'):
+    sets = {
+        'full': [
+            'Temperature',
+            'Humidity',
+            'Light',
+            'CO2',
+            'HumidityRatio'
+        ],
+        'Light+CO2': [
+            'Light',
+            'CO2'
+        ]
+    }
+    return sets[set]
 
 if __name__ == '__main__':
     concat_tables()

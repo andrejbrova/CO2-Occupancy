@@ -1,0 +1,2 @@
+,batch size,epochs,repeats,embedding,accuracy_train_mean,accuracy_train_std,accuracy_test_1_mean,accuracy_test_1_std,accuracy_test_2_mean,accuracy_test_2_std,accuracy_test_combined_mean,accuracy_test_combined_std
+?,16,3,2,autoencoder_embedding,0.97126365,0.017438293,0.9630394,0.01557225,0.97733796,0.00071778893,0.97426915,0.0027784705

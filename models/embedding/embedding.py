@@ -1,5 +1,10 @@
-import pathlib
 import sys
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).parents[2]
+sys.path.append(str(ROOT_DIR))
+sys.path.append(str(ROOT_DIR.parent) + '/Repos/datascience/') # Path to datamodel location
+
 from matplotlib import pyplot as plt
 from tensorflow import keras
 from keras import layers
@@ -15,10 +20,6 @@ from keras.layers import Activation, BatchNormalization, Concatenate
 from keras.layers import Dropout, Dense, Input, Reshape
 from keras.layers.embeddings import Embedding
 from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
-
-directory = pathlib.Path(__file__).parent
-sys.path.append(str(directory.parent))
-sys.path.append(str(directory.parent.parent) + '/Repos/datascience/')
 
 from utils import get_embeddings, summarize_results
 from datamodels import datamodels as dm
@@ -43,36 +44,10 @@ def main():
 def run_embedding(batch_size, epochs, repeats, model, model_name):
     X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, encoders = get_embeddings()
 
-    cat_vars = [
-        #'Week',
-        'Weekday'
-    ]
-    cont_vars = X_train[-1].columns
-
-    # Vector sizes
-    cat_sizes = [(c, len(X_train[i].cat.categories)) for i, c in enumerate(cat_vars)]
-    embedding_sizes = [(c, min(50, (c + 1) // 2)) for _, c in cat_sizes]
-
     def build_model(input_shape: tuple, target_shape: tuple) -> keras.Model:
-        inputs = []
-        embed_layers = []
-        for (c, (in_size, out_size)) in zip(cat_vars, embedding_sizes):
-            i = Input(shape=input_shape)
-            o = Embedding(in_size, out_size, name=c)(i)
-            o = Reshape(target_shape=(out_size,))(o)
-            inputs.append(i)
-            embed_layers.append(o)
+        inputs, x = layers_embedding(X_train)
 
-        embed = Concatenate()(embed_layers)
-        embed = Dropout(0.04)(embed)
-
-        cont_input = Input(shape=(len(cont_vars),))
-        inputs.append(cont_input)
-
-        x = Concatenate()([embed, cont_input])
-        x = keras.layers.Reshape((9, 1))(x)
-
-        x = model(x)
+        x = model(inputs)
 
         x = keras.layers.Dense(target_shape[0], activation='sigmoid')(x)
 
@@ -133,7 +108,7 @@ def run_embedding(batch_size, epochs, repeats, model, model_name):
         scores_test_1.append(acc_test_1)
         scores_test_2.append(acc_test_2)
         scores_test_combined.append(acc_test_combined)
-    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name).to_csv(str(directory) + '/' + model_name + '_embedding.csv')
+    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name).to_csv(ROOT_DIR + '/models/results/' + model_name + '_embedding.csv')
     
     plot_embedding(models, encoders, 'Weekday', scores_test_combined, model_name)
 
@@ -167,10 +142,43 @@ def plot_embedding(models, encoders, category, scores_test_combined, model_name)
     plt.xlabel('PC1')
     plt.ylabel('PC2')
     plt.legend()
-    plt.savefig(str(directory) + '/' + model_name + '_embedding.png')
+    plt.savefig(ROOT_DIR + '/models/results/' + model_name + '_embedding.png')
     #plt.show()
 
 # Layers
+
+def layers_embedding(X_train):
+    input_shape = (1,)
+
+    cat_vars = [
+        #'Week',
+        'Weekday'
+    ]
+    cont_vars = X_train[-1].columns
+
+    # Vector sizes
+    cat_sizes = [(c, len(X_train[i].cat.categories)) for i, c in enumerate(cat_vars)]
+    embedding_sizes = [(c, min(50, (c + 1) // 2)) for _, c in cat_sizes]
+
+    inputs = []
+    embed_layers = []
+    for (c, (in_size, out_size)) in zip(cat_vars, embedding_sizes):
+        i = Input(shape=input_shape)
+        o = Embedding(in_size, out_size, name=c)(i)
+        o = Reshape(target_shape=(out_size,))(o)
+        inputs.append(i)
+        embed_layers.append(o)
+
+    embed = Concatenate()(embed_layers)
+    embed = Dropout(0.04)(embed)
+
+    cont_input = Input(shape=(len(cont_vars),))
+    inputs.append(cont_input)
+
+    x = Concatenate()([embed, cont_input])
+    x = keras.layers.Reshape((9, 1))(x)
+
+    return inputs, x
 
 def layers_CNN(x):
     x = keras.layers.Conv1D(filters=32, kernel_size=3, activation="relu")(x)
