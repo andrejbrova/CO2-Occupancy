@@ -1,73 +1,132 @@
+import sys
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).parents[0]
+sys.path.append(str(ROOT_DIR))
+sys.path.append(str(ROOT_DIR.parent) + '/Repos/datascience/') # Path to datamodel location
+
 import os
 import glob
-import pathlib
-import sys
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
-
-directory = pathlib.Path(__file__).parent
-sys.path.append(str(directory.parent) + '/Repos/datascience/') # Path to datamodel location
+from sklearn.model_selection import train_test_split
 
 from datamodels import datamodels as dm
 
 
-def load_features():
-    training = pd.read_csv(str(directory) + '/occupancy_data/datatraining.txt', parse_dates=['date'])
-    test1 = pd.read_csv(str(directory) + '/occupancy_data/datatest.txt', parse_dates=['date'])
-    test2 = pd.read_csv(str(directory) + '/occupancy_data/datatest2.txt', parse_dates=['date'])
-
-    training = training.set_index('date')
-    test1 = test1.set_index('date')
-    test2 = test2.set_index('date')
-
-    return training, test1, test2
-
 def load_dataset(
+    dataset='uci',
     feature_set='full', # 'full', 'Light+CO2'
     historical_co2=False,
     normalize=False,
     embedding=False
     ):
-    training, test1, test2 = load_features()
 
     features = get_feature_list(feature_set)
-    if historical_co2:
-        features.append('CO2+1h')
-        training['CO2+1h'] = training.loc[:,'CO2'].shift(1)
-        training = training.dropna()
-        test1['CO2+1h'] = test1.loc[:,'CO2'].shift(1)
-        test1 = test1.dropna()
-        test2['CO2+1h'] = test2.loc[:,'CO2'].shift(1)
-        test2 = test2.dropna()
+    
+    if dataset == 'uci':
+        training, test1, test2 = load_dataset_uci()
 
-    X_train = training.loc[:,features]
-    y_train = pd.DataFrame(training.loc[:,'Occupancy'])
+        if historical_co2:
+            features.append('CO2+1h')
+            training['CO2+1h'] = training.loc[:,'CO2'].shift(1)
+            training = training.dropna()
+            test1['CO2+1h'] = test1.loc[:,'CO2'].shift(1)
+            test1 = test1.dropna()
+            test2['CO2+1h'] = test2.loc[:,'CO2'].shift(1)
+            test2 = test2.dropna()
 
-    X_test_1 = test1.loc[:,features]
-    y_test_1 = pd.DataFrame(test1.loc[:,'Occupancy'])
+        X_train = training.loc[:,features]
+        y_train = pd.DataFrame(training.loc[:,'Occupancy'])
 
-    X_test_2 = test2.loc[:,features]
-    y_test_2 = pd.DataFrame(test2.loc[:,'Occupancy'])
+        X_test_1 = test1.loc[:,features]
+        y_test_1 = pd.DataFrame(test1.loc[:,'Occupancy'])
 
-    X_test_combined = pd.concat([X_test_1, X_test_2])
-    y_test_combined = pd.concat([y_test_1, y_test_2])
+        X_test_2 = test2.loc[:,features]
+        y_test_2 = pd.DataFrame(test2.loc[:,'Occupancy'])
 
-    if normalize:
-        x_scaler = dm.processing.Normalizer().fit(X_train)
+        X_test_combined = pd.concat([X_test_1, X_test_2])
+        y_test_combined = pd.concat([y_test_1, y_test_2])
 
-        X_train = x_scaler.transform(X_train)
-        X_test_1 = x_scaler.transform(X_test_1)
-        X_test_2 = x_scaler.transform(X_test_2)
-        X_test_combined = x_scaler.transform(X_test_combined)
+        if normalize:
+            x_scaler = dm.processing.Normalizer().fit(X_train)
 
-    if embedding:
-        X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, _ = get_embeddings(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined)
+            X_train = x_scaler.transform(X_train)
+            X_test_1 = x_scaler.transform(X_test_1)
+            X_test_2 = x_scaler.transform(X_test_2)
+            X_test_combined = x_scaler.transform(X_test_combined)
 
-    return X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined
+        if embedding:
+            X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, _ = get_embeddings(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined)
 
-def load_shaped_dataset(lookback_horizon, prediction_horizon, historical_co2=False, normalize=False):
-    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(historical_co2, normalize)
+        return X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined
+
+    else:
+        data = load_dataset_brick(dataset)
+
+        if historical_co2:
+            features.append('CO2+1h')
+            data['CO2+1h'] = data.loc[:,'CO2'].shift(1)
+
+        X = data.loc[:,data.columns.intersection(features)]
+        y = pd.DataFrame(data.loc[:,'Occupancy'])
+
+        if normalize:
+            x_scaler = dm.processing.Normalizer().fit(X)
+            X = x_scaler.transform(X)
+
+        if embedding:
+            X, y = get_embeddings(X, y)
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.8, shuffle=False) # TODO change test size
+
+        return X_train, X_test, X_test.iloc[0:100], X_test.iloc[0:100], y_train, y_test, y_test.iloc[0:100], y_test.iloc[0:100] # Not the best solution, but test2 and test_combined are substituted by dummies here
+
+def load_dataset_uci():
+    training = pd.read_csv(str(ROOT_DIR) + '/occupancy_data/datatraining.txt', parse_dates=['date'])
+    test1 = pd.read_csv(str(ROOT_DIR) + '/occupancy_data/datatest.txt', parse_dates=['date'])
+    test2 = pd.read_csv(str(ROOT_DIR) + '/occupancy_data/datatest2.txt', parse_dates=['date'])
+
+    training = training.set_index('date')
+    test1 = test1.set_index('date')
+    test2 = test2.set_index('date')
+
+    return [training, test1, test2]
+
+def load_dataset_brick(country):
+    filename_1 = {
+        'Denmark': 'Denmark/Indoor_Measurement_Study4.csv',
+        'Australia': 'Australia/Indoor_Measurement_Study7.csv',
+        'Italy': 'Italy/Indoor_Measurement_Study10.csv',
+    }
+    filename_2 = {
+        'Denmark': 'Denmark/Occupancy_Measurement_Study4.csv', # Doesn't exist
+        'Australia': 'Australia/Occupancy_Measurement_Study7.csv',
+        'Italy': 'Italy/Occupancy_Measurement_Study10.csv'
+    }
+    translate_columns = {
+        'Indoor_Temp[C]': 'Temperature',
+        'Indoor_RH[%]': 'Humidity',
+        'Indoor_CO2[ppm]': 'CO2',
+        'Occupancy_Measurement[0-Unoccupied;1-Occupied]': 'Occupancy'
+    }
+
+    dataset_1 = pd.read_csv(str(ROOT_DIR) + '/occupancy_data/' + filename_1[country], index_col='Date_Time', na_values=-999)
+    dataset_2 = pd.read_csv(str(ROOT_DIR) + '/occupancy_data/' + filename_2[country], index_col='Date_Time', na_values=-999)
+
+    dataset = pd.concat([dataset_1, dataset_2], axis=1)
+
+    dataset = dataset.dropna()
+
+    dataset = dataset.rename(columns=translate_columns)
+
+    dataset = dataset[translate_columns.values()]
+
+    return dataset
+
+def load_shaped_dataset(lookback_horizon, prediction_horizon, dataset='uci', feature_set='full', historical_co2=False, normalize=False):
+    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(dataset, feature_set, historical_co2, normalize)
 
     X_train, y_train = dm.processing.shape.get_windows(
         lookback_horizon, X_train.to_numpy(), prediction_horizon, y_train.to_numpy()
@@ -149,6 +208,7 @@ def summarize_results(
     scores_test_2,
     scores_test_combined,
     model_name='?',
+    dataset='?',
     batch_size='?',
     epochs='?',
     repeats='?',
@@ -172,7 +232,17 @@ def summarize_results(
         'accuracy_test_combined_mean': np.mean(scores_test_combined),
         'accuracy_test_combined_std': np.std(scores_test_combined)
     }
-    return pd.DataFrame(result, index=[model_name])
+    suffix = ''
+    if feature_set != '?' and feature_set != 'full':
+        suffix += '_' + feature_set
+    if embedding != '?' and embedding != False:
+        suffix += '_embedding'
+    if dataset == '?' or dataset == 'uci':
+        folder = 'results/'
+    else:
+        folder = 'results_' + dataset + '/'
+
+    pd.DataFrame(result, index=[model_name]).to_csv(str(ROOT_DIR) + '/models/' + folder + model_name + suffix + '.csv')
 
 def concat_tables():
     path = os.getcwd() + '/results/'

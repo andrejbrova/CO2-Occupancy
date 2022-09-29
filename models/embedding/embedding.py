@@ -176,7 +176,8 @@ def layers_embedding(X_train):
     inputs.append(cont_input)
 
     x = Concatenate()([embed, cont_input])
-    x = keras.layers.Reshape((9, 1))(x)
+    concat_shape = (embed.shape[1] + cont_input.shape[1], 1)
+    x = keras.layers.Reshape(concat_shape)(x)
 
     return inputs, x
 

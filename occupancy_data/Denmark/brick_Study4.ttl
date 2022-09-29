@@ -1,0 +1,86 @@
+@prefix bldg: <http://example.org/building#> .
+@prefix brick: <https://brickschema.org/schema/Brick#> .
+
+bldg:Building-1 a brick:Building ;
+    brick:hasLocation bldg:Room-Building-1-1,
+        bldg:Room-Building-1-2,
+        bldg:Room-Building-1-3 .
+
+bldg:VAV_Opening-Building-1-1 a brick:VAV_Opening ;
+    brick:isPointOf bldg:VAV-Building-1-1 .
+
+bldg:VAV_Opening-Building-1-2 a brick:VAV_Opening ;
+    brick:isPointOf bldg:VAV-Building-1-2 .
+
+bldg:VAV_Opening-Building-1-3 a brick:VAV_Opening ;
+    brick:isPointOf bldg:VAV-Building-1-3 .
+
+bldg:Occupancy-Count-Room-Building-1-1 a brick:Occupancy_Count_Sensor .
+
+bldg:Occupancy-Count-Room-Building-1-2 a brick:Occupancy_Count_Sensor .
+
+bldg:Occupancy-Count-Room-Building-1-3 a brick:Occupancy_Count_Sensor .
+
+bldg:Room-Building-1-1 a brick:Room ;
+    brick:hasPoint bldg:Occupancy-Count-Room-Building-1-1,
+        bldg:Room-Building-1-1-CO2_Level_Sensor,
+        bldg:Room-Building-1-1-Illuminance_Sensor,
+        bldg:Room-Building-1-1-Indoor_Humidity_Sensor,
+        bldg:Room-Building-1-1-Room_Air_Temperature_Sensor ;
+    brick:hasLocation bldg:HVAC_Zone-Building-1-1 .
+
+bldg:Room-Building-1-1-CO2_Level_Sensor a brick:CO2_Level_Sensor .
+
+bldg:Room-Building-1-1-Illuminance_Sensor a brick:Illuminance_Sensor .
+
+bldg:Room-Building-1-1-Indoor_Humidity_Sensor a brick:Humidity_Sensor .
+
+bldg:Room-Building-1-1-Room_Air_Temperature_Sensor a brick:Room_Air_Temperature_Sensor .
+
+bldg:Room-Building-1-2 a brick:Room ;
+    brick:hasPoint bldg:Occupancy-Count-Room-Building-1-2,
+        bldg:Room-Building-1-2-CO2_Level_Sensor,
+        bldg:Room-Building-1-2-Illuminance_Sensor,
+        bldg:Room-Building-1-2-Indoor_Humidity_Sensor,
+        bldg:Room-Building-1-2-Room_Air_Temperature_Sensor ;
+    brick:hasLocation bldg:HVAC_Zone-Building-1-2 .
+
+bldg:Room-Building-1-2-CO2_Level_Sensor a brick:CO2_Level_Sensor .
+
+bldg:Room-Building-1-2-Illuminance_Sensor a brick:Illuminance_Sensor .
+
+bldg:Room-Building-1-2-Indoor_Humidity_Sensor a brick:Humidity_Sensor .
+
+bldg:Room-Building-1-2-Room_Air_Temperature_Sensor a brick:Room_Air_Temperature_Sensor .
+
+bldg:Room-Building-1-3 a brick:Room ;
+    brick:hasPoint bldg:Occupancy-Count-Room-Building-1-3,
+        bldg:Room-Building-1-3-CO2_Level_Sensor,
+        bldg:Room-Building-1-3-Illuminance_Sensor,
+        bldg:Room-Building-1-3-Indoor_Humidity_Sensor,
+        bldg:Room-Building-1-3-Room_Air_Temperature_Sensor ;
+    brick:hasLocation bldg:HVAC_Zone-Building-1-3 .
+
+bldg:Room-Building-1-3-CO2_Level_Sensor a brick:CO2_Level_Sensor .
+
+bldg:Room-Building-1-3-Illuminance_Sensor a brick:Illuminance_Sensor .
+
+bldg:Room-Building-1-3-Indoor_Humidity_Sensor a brick:Humidity_Sensor .
+
+bldg:Room-Building-1-3-Room_Air_Temperature_Sensor a brick:Room_Air_Temperature_Sensor .
+
+bldg:VAV-Building-1-1 a brick:VAV ;
+    brick:feeds bldg:HVAC_Zone-Building-1-1 .
+
+bldg:VAV-Building-1-2 a brick:VAV ;
+    brick:feeds bldg:HVAC_Zone-Building-1-2 .
+
+bldg:VAV-Building-1-3 a brick:VAV ;
+    brick:feeds bldg:HVAC_Zone-Building-1-3 .
+
+bldg:HVAC_Zone-Building-1-1 a brick:HVAC_Zone .
+
+bldg:HVAC_Zone-Building-1-2 a brick:HVAC_Zone .
+
+bldg:HVAC_Zone-Building-1-3 a brick:HVAC_Zone .
+

@@ -25,10 +25,11 @@ from datamodels import datamodels as dm
 def main():
     batch_size = 32
     epochs = 50 # 100
-    repeats = 5 # 10
+    repeats = 10 # 10
     lookback_horizon = 48
     prediction_horizon = 1
     n = 3
+    feature_set='Light+CO2'
     name = 'resnet20'
 
     depth = n * 6 + 2
@@ -44,13 +45,13 @@ def main():
     scores_test_combined = []
     for run in range(repeats):
         print('Run ' + str(run + 1))
-        acc_train, acc_test_1, acc_test_2, acc_test_combined = run_model(lookback_horizon, prediction_horizon, batch_size, epochs, depth, name)
+        acc_train, acc_test_1, acc_test_2, acc_test_combined = run_model(lookback_horizon, prediction_horizon, batch_size, epochs, depth, feature_set, name)
         scores_train.append(acc_train)
         scores_test_1.append(acc_test_1)
         scores_test_2.append(acc_test_2)
         scores_test_combined.append(acc_test_combined)
 
-    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name).to_csv(str(directory) + '/results/' + name + '.csv')
+    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name, batch_size, epochs, repeats, False, feature_set)
 
 def build_model(input_shape, target_shape, depth):
 
@@ -168,10 +169,8 @@ def lr_schedule(epoch):
 
         return lr
 
-def run_model(lookback_horizon, prediction_horizon, batch_size, epochs, depth, name):
-    
-
-    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_shaped_dataset(lookback_horizon, prediction_horizon)
+def run_model(lookback_horizon, prediction_horizon, batch_size, epochs, depth, feature_set, name):
+    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_shaped_dataset(lookback_horizon, prediction_horizon, feature_set)
 
     x_scaler = dm.processing.Normalizer().fit(X_train)
     

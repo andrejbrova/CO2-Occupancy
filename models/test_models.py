@@ -26,12 +26,15 @@ from datamodels import datamodels as dm
 
 
 def main():
-    BATCH_SIZE = 32
-    EPOCHS = 50
-    REPEATS = 10
+    dataset = 'Australia'
+    batch_size = 256 # 32 for uci
+    epochs = 50
+    repeats = 10
     lookback_horizon = 48
     prediction_horizon = 1
-    historical_co2 = True
+    historical_co2 = False
+    embedding = False
+    feature_set = 'full'
     model_name = 'CNN'
 
     models = {
@@ -39,7 +42,8 @@ def main():
         'SRNN': (dm.RecurrentNetwork, layers_SRNN)
     }
 
-    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_shaped_dataset(lookback_horizon, prediction_horizon, historical_co2)
+    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_shaped_dataset(
+        lookback_horizon, prediction_horizon, dataset=dataset, historical_co2=historical_co2, normalize=True)
 
     """print(f'Training on {X_train.shape[0]} samples.')
     print(f'Testing on {X_test_1.shape[0]} samples (Test1).')
@@ -50,18 +54,16 @@ def main():
     scores_test_1 = []
     scores_test_2 = []
     scores_test_combined = []
-    for run in range(REPEATS):
+    for run in range(repeats):
         print('Run ' + str(run + 1))
-        model = build_model(X_train.shape[0], X_train.shape[-1], 1, BATCH_SIZE, EPOCHS, models[model_name], model_name)
+        model = build_model(X_train.shape[0], X_train.shape[-1], 1, batch_size, epochs, models[model_name], model_name)
         acc_train, acc_test_1, acc_test_2, acc_test_combined = run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, model, lookback_horizon, prediction_horizon)
         scores_train.append(acc_train)
         scores_test_1.append(acc_test_1)
         scores_test_2.append(acc_test_2)
         scores_test_combined.append(acc_test_combined)
     
-    if historical_co2:
-        model_name = model_name + '_+hist_co2'
-    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name).to_csv('./results/' + model_name + '.csv')
+    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name, dataset, batch_size, epochs, repeats, embedding, feature_set)
 
 def build_model(n_timesteps, n_features, target_shape, batch_size, epochs, model_type, name):
     
@@ -81,22 +83,16 @@ def build_model(n_timesteps, n_features, target_shape, batch_size, epochs, model
             callbacks=callbacks_list
         )
 
-    model = model_type(1)(
+    model = model_type[0](
         name='SIMPLE ' + name,
         y_scaler_class=dm.processing.Normalizer,
         compile_function=compile_model,
-        build_function=model_type(2),
+        build_function=model_type[1],
         train_function=train_model)
 
     return model
 
 def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, model, lookback_horizon, prediction_horizon):
-    x_scaler = dm.processing.Normalizer().fit(X_train)
-    #y_scaler = dm.processing.Normalizer().fit(y_train)
-
-    model.set_x_scaler(x_scaler)
-    #model.set_y_scaler(y_scaler) # Not necessary for binary classification
-
     model.train(X_train, y_train)
 
     y_pred_train = model.predict(X_train)
@@ -104,14 +100,10 @@ def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y
     y_pred_test_2 = model.predict(X_test_2)
     y_pred_test_combined = model.predict(X_test_combined)
 
-    evaluation = BinaryAccuracy()
-    acc_train = evaluation(y_train, y_pred_train)
-    evaluation.reset_states()
-    acc_test_1 = evaluation(y_test_1, y_pred_test_1)
-    evaluation.reset_states()
-    acc_test_2 = evaluation(y_test_2, y_pred_test_2)
-    evaluation.reset_states()
-    acc_test_combined = evaluation(y_test_combined, y_pred_test_combined)
+    acc_train = BinaryAccuracy()(y_train, y_pred_train)
+    acc_test_1 = BinaryAccuracy()(y_test_1, y_pred_test_1)
+    acc_test_2 = BinaryAccuracy()(y_test_2, y_pred_test_2)
+    acc_test_combined = BinaryAccuracy()(y_test_combined, y_pred_test_combined)
 
     return acc_train, acc_test_1, acc_test_2, acc_test_combined
 

@@ -1,0 +1,2 @@
+,batch size,epochs,repeats,embedding,feature set,accuracy_train_mean,accuracy_train_std,accuracy_test_1_mean,accuracy_test_1_std,accuracy_test_2_mean,accuracy_test_2_std,accuracy_test_combined_mean,accuracy_test_combined_std
+resnet20,32,50,10,False,Light+CO2,0.9589819,0.02418133,0.9259938,0.04953374,0.9350098,0.02648405,0.9316866,0.030004619

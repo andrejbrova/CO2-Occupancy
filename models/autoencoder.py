@@ -33,12 +33,14 @@ from models.embedding.embedding import layers_embedding
 
 
 def main():
+    dataset = 'uci'
     batch_size = 16 # 64
     epochs = 30 # 200
     repeats = 10
     lookback_horizon = 48
     prediction_horizon = 1
     embedding = True
+    feature_set = 'Light+CO2'
     name = 'autoencoder_embedding'
 
     scores_train = []
@@ -52,7 +54,7 @@ def main():
         print('Run ' + str(run + 1))
         set_random_seed(run)
         acc_train, acc_test_1, acc_test_2, acc_test_combined, autoencoder_train, classifier_train, encoded_representation, y_test_combined = run_model(
-            lookback_horizon, prediction_horizon, batch_size, epochs, embedding, name)
+            dataset, lookback_horizon, prediction_horizon, batch_size, epochs, embedding, feature_set, name)
         scores_train.append(acc_train)
         scores_test_1.append(acc_test_1)
         scores_test_2.append(acc_test_2)
@@ -68,10 +70,10 @@ def main():
     loss_plot(autoencoders_train[max_value_index], name)
     acc_plot(classifiers_train[max_value_index], name)
 
-    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, batch_size, epochs, repeats, name).to_csv(str(ROOT_DIR) + '/models/results/' + name + '.csv')
+    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name, dataset, batch_size, epochs, repeats, embedding, feature_set)
 
-def run_model(lookback_horizon, prediction_horizon, batch_size, epochs, embedding, name):
-    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(normalize=True, embedding=embedding)
+def run_model(dataset, lookback_horizon, prediction_horizon, batch_size, epochs, embedding, feature_set, name):
+    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(dataset=dataset, feature_set=feature_set, normalize=True, embedding=embedding)
 
     y_shape = y_train.shape[1:]
 

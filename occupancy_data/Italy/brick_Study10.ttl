@@ -1,0 +1,57 @@
+@prefix bldg: <http://example.org/building#> .
+@prefix brick: <https://brickschema.org/schema/Brick#> .
+@prefix brick1: <https://brickschema.org/schema/1.2/Brick#> .
+@prefix brick11: <https://brickschema.org/schema/Brick/extension/occupancy#> .
+
+bldg:Building-1 a brick:Building,
+        brick11:Building ;
+    brick:hasLocation bldg:Room-Building-1-1 ;
+    brick11:hasLocation bldg:Room-Building-1-1 .
+
+bldg:Building-1-1-Cooling_Command_1 a brick:Cooling_Command ;
+    brick:isPointOf bldg:HVAC_Zone-Building-1-1 .
+
+bldg:Electric_Power_Meter-Plug-1 a brick1:Power_Sensor ;
+    brick1:isPointOf <Plug-1> .
+
+bldg:Room-Building-1-1-Door_Status_1 a brick11:Door ;
+    brick11:isPointOf bldg:Room-Building-1-1 .
+
+bldg:Room-Building-1-1-Window_Status_1 a brick11:Window ;
+    brick11:isPointOf bldg:Room-Building-1-1 .
+
+bldg:building-1 a brick1:Building ;
+    brick1:hasLocation bldg:room-1 .
+
+bldg:Occupancy-Count-Room-Building-1-1 a brick:Occupancy_Count_Sensor .
+
+bldg:Occupancy-Presence-Room-Building-1-1 a brick:Occupancy_Presence_Sensor .
+
+bldg:Room-Building-1-1-Air_Quality_Sensor a brick:Air_Quality_Sensor .
+
+bldg:Room-Building-1-1-CO2_Level_Sensor a brick:CO2_Level_Sensor .
+
+bldg:Room-Building-1-1-Humidity_Sensor a brick:Humidity_Sensor .
+
+bldg:Room-Building-1-1-Room_Air_Temperature_Sensor a brick:Room_Air_Temperature_Sensor .
+
+bldg:Room-Building-1-1-Static_Pressure_Sensor a brick:Static_Pressure_Sensor .
+
+bldg:room-1 a brick1:Room ;
+    brick1:hasLocation <Plug-1> .
+
+<Plug-1> a brick1:Personal_Device .
+
+bldg:HVAC_Zone-Building-1-1 a brick:HVAC_Zone .
+
+bldg:Room-Building-1-1 a brick:Room,
+        brick11:Room ;
+    brick:hasLocation bldg:HVAC_Zone-Building-1-1 ;
+    brick:hasPoint bldg:Occupancy-Count-Room-Building-1-1,
+        bldg:Occupancy-Presence-Room-Building-1-1,
+        bldg:Room-Building-1-1-Air_Quality_Sensor,
+        bldg:Room-Building-1-1-CO2_Level_Sensor,
+        bldg:Room-Building-1-1-Humidity_Sensor,
+        bldg:Room-Building-1-1-Room_Air_Temperature_Sensor,
+        bldg:Room-Building-1-1-Static_Pressure_Sensor .
+
