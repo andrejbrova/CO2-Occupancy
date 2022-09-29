@@ -24,13 +24,14 @@ def load_features():
     return training, test1, test2
 
 def load_dataset(
+    feature_set='full', # 'full', 'Light+CO2'
     historical_co2=False,
     normalize=False,
     embedding=False
     ):
     training, test1, test2 = load_features()
 
-    features = get_feature_list()
+    features = get_feature_list(feature_set)
     if historical_co2:
         features.append('CO2+1h')
         training['CO2+1h'] = training.loc[:,'CO2'].shift(1)
@@ -61,7 +62,7 @@ def load_dataset(
         X_test_combined = x_scaler.transform(X_test_combined)
 
     if embedding:
-        X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, _ = get_embeddings()
+        X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, _ = get_embeddings(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined)
 
     return X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined
 
@@ -86,8 +87,8 @@ def load_shaped_dataset(lookback_horizon, prediction_horizon, historical_co2=Fal
 
     return X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined
 
-def get_embeddings():
-    X, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset()
+def get_embeddings(X, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined):
+    #X, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset()
 
     cat_vars = [
         #'Week',
@@ -147,11 +148,12 @@ def summarize_results(
     scores_test_1,
     scores_test_2,
     scores_test_combined,
+    model_name='?',
     batch_size='?',
     epochs='?',
     repeats='?',
     embedding='?',
-    model_name='?'
+    feature_set='?'
     ):
     print(scores_train)
     print(scores_test_1)
@@ -160,6 +162,7 @@ def summarize_results(
         'epochs': epochs,
         'repeats': repeats,
         'embedding': embedding,
+        'feature set': feature_set,
         'accuracy_train_mean': np.mean(scores_train),
         'accuracy_train_std': np.std(scores_train),
         'accuracy_test_1_mean': np.mean(scores_test_1),
