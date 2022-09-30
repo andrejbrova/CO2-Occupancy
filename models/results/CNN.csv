@@ -1,2 +1,2 @@
-,accuracy_train_mean,accuracy_train_std,accuracy_test_1_mean,accuracy_test_1_std,accuracy_test_2_mean,accuracy_test_2_std,accuracy_test_combined_mean,accuracy_test_combined_std
-CNN,0.99505806,0.0019651575,0.9448012,0.011720209,0.9721838,0.010312731,0.96581495,0.009878524
+,batch size,epochs,repeats,embedding,feature set,accuracy_train_mean,accuracy_train_std,accuracy_test_1_mean,accuracy_test_1_std,accuracy_test_2_mean,accuracy_test_2_std,accuracy_test_combined_mean,accuracy_test_combined_std
+CNN,?,?,?,?,?,1.0,0.0,1.0,0.0,1.0,0.0,1.0,0.0

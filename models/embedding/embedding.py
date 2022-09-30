@@ -21,33 +21,36 @@ from keras.layers import Dropout, Dense, Input, Reshape
 from keras.layers.embeddings import Embedding
 from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 
-from utils import get_embeddings, summarize_results
+from utils import load_dataset, get_embeddings, summarize_results
 from datamodels import datamodels as dm
 
 
 def main():
+    dataset = 'Denmark'
+    feature_set='full'
+    historical_co2=False
     batch_size = 32
-    epochs = 50
-    repeats = 10
-    lookback_horizon = 48
-    prediction_horizon = 1
-    embedding = True
-    model_name = 'GRU'
+    epochs = 3 #50
+    repeats = 2
+    model_name = 'CNN'
 
     models = {
         'CNN': layers_CNN,
         'GRU': layers_GRU
     }
 
-    run_embedding(batch_size, epochs, repeats, models[model_name], model_name)
+    run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repeats, models[model_name], model_name)
 
-def run_embedding(batch_size, epochs, repeats, model, model_name):
-    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, encoders = get_embeddings()
+def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repeats, model_layers, model_name):
+    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(
+        dataset=dataset, feature_set=feature_set, historical_co2=historical_co2, normalize=True)
+    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, encoders = get_embeddings(
+        X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined)
 
     def build_model(input_shape: tuple, target_shape: tuple) -> keras.Model:
         inputs, x = layers_embedding(X_train)
 
-        x = model(inputs)
+        x = model_layers(x)
 
         x = keras.layers.Dense(target_shape[0], activation='sigmoid')(x)
 
@@ -76,14 +79,10 @@ def run_embedding(batch_size, epochs, repeats, model, model_name):
         y_pred_test_2 = model.predict(X_test_2)
         y_pred_test_combined = model.predict(X_test_combined)
 
-        evaluation = BinaryAccuracy()
-        acc_train = evaluation(y_train, y_pred_train)
-        evaluation.reset_states()
-        acc_test_1 = evaluation(y_test_1, y_pred_test_1)
-        evaluation.reset_states()
-        acc_test_2 = evaluation(y_test_2, y_pred_test_2)
-        evaluation.reset_states()
-        acc_test_combined = evaluation(y_test_combined, y_pred_test_combined)
+        acc_train = BinaryAccuracy()(y_train, y_pred_train)
+        acc_test_1 = BinaryAccuracy()(y_test_1, y_pred_test_1)
+        acc_test_2 = BinaryAccuracy()(y_test_2, y_pred_test_2)
+        acc_test_combined = BinaryAccuracy()(y_test_combined, y_pred_test_combined)
 
         return acc_train, acc_test_1, acc_test_2, acc_test_combined
     
@@ -108,17 +107,18 @@ def run_embedding(batch_size, epochs, repeats, model, model_name):
         scores_test_1.append(acc_test_1)
         scores_test_2.append(acc_test_2)
         scores_test_combined.append(acc_test_combined)
-    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name).to_csv(ROOT_DIR + '/models/results/' + model_name + '_embedding.csv')
+    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name, dataset, batch_size, epochs, repeats, True, feature_set)
     
-    plot_embedding(models, encoders, 'Weekday', scores_test_combined, model_name)
+    for cat_var in encoders.keys():
+        plot_embedding(models, dataset, encoders, cat_var, scores_test_1, model_name)
 
-def plot_embedding(models, encoders, category, scores_test_combined, model_name):
+def plot_embedding(models, dataset, encoders, category, scores_test_1, model_name):
     # Find best and worst model
-    max_value = max(scores_test_combined)
-    max_value_index = scores_test_combined.index(max_value)
+    max_value = max(scores_test_1)
+    max_value_index = scores_test_1.index(max_value)
     best = models[max_value_index]
-    min_value = min(scores_test_combined)
-    min_value_index = scores_test_combined.index(min_value)
+    min_value = min(scores_test_1)
+    min_value_index = scores_test_1.index(min_value)
     worst = models[min_value_index]
     models_to_plot = [best, worst]
     colors = ['green', 'red']
@@ -138,11 +138,17 @@ def plot_embedding(models, encoders, category, scores_test_combined, model_name)
             ax.annotate(day, (weights_t[0, i], weights_t[1, i]))
             #fig.tight_layout()
 
-    plt.title('PCA of the weights of the embedding "Weekday" layer')
+    plt.title('PCA of the weights of the embedding "' + category + '" layer')
     plt.xlabel('PC1')
     plt.ylabel('PC2')
     plt.legend()
-    plt.savefig(ROOT_DIR + '/models/results/' + model_name + '_embedding.png')
+
+    if dataset == 'uci':
+        folder = 'results/'
+    else:
+        folder = 'results_' + dataset + '/'
+
+    plt.savefig(str(ROOT_DIR) + '/models/' + folder + model_name + '_embedding_' + category + '.png')
     #plt.show()
 
 # Layers
@@ -150,10 +156,9 @@ def plot_embedding(models, encoders, category, scores_test_combined, model_name)
 def layers_embedding(X_train):
     input_shape = (1,)
 
-    cat_vars = [
-        #'Week',
-        'Weekday'
-    ]
+    cat_vars = []
+    for x in X_train[0:-1]:
+        cat_vars.append(x.name)
     cont_vars = X_train[-1].columns
 
     # Vector sizes
@@ -186,7 +191,7 @@ def layers_CNN(x):
     x = keras.layers.Conv1D(filters=32, kernel_size=3, activation="relu")(x)
     x = keras.layers.Conv1D(filters=32, kernel_size=3, activation="relu")(x)
     x = keras.layers.Dropout(0.2)(x)
-    x = keras.layers.Conv1D(filters=32, kernel_size=3, activation="relu")(x)
+    #x = keras.layers.Conv1D(filters=32, kernel_size=3, activation="relu")(x)
     x = keras.layers.Dense(units=32, activation="relu")(x)
     x = keras.layers.Flatten()(x)
     x = keras.layers.Dropout(0.2)(x)

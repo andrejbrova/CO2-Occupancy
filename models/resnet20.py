@@ -1,5 +1,9 @@
-import pathlib
 import sys
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).parents[1]
+sys.path.append(str(ROOT_DIR))
+
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -10,12 +14,7 @@ from keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
 from keras.metrics import BinaryAccuracy
 from tensorflow.keras.optimizers import Adam
 
-directory = pathlib.Path(__file__).parent
-sys.path.append(str(directory.parent))
-sys.path.append(str(directory.parent.parent) + '/Repos/datascience/') # Path to datamodel location
-
-from utils import load_shaped_dataset, summarize_results
-from datamodels import datamodels as dm
+from utils import load_dataset, summarize_results
 
 # References:
 # https://www.geeksforgeeks.org/residual-networks-resnet-deep-learning/
@@ -26,8 +25,6 @@ def main():
     batch_size = 32
     epochs = 50 # 100
     repeats = 10 # 10
-    lookback_horizon = 48
-    prediction_horizon = 1
     n = 3
     feature_set='Light+CO2'
     name = 'resnet20'
@@ -45,7 +42,7 @@ def main():
     scores_test_combined = []
     for run in range(repeats):
         print('Run ' + str(run + 1))
-        acc_train, acc_test_1, acc_test_2, acc_test_combined = run_model(lookback_horizon, prediction_horizon, batch_size, epochs, depth, feature_set, name)
+        acc_train, acc_test_1, acc_test_2, acc_test_combined = run_model(batch_size, epochs, depth, feature_set, name)
         scores_train.append(acc_train)
         scores_test_1.append(acc_test_1)
         scores_test_2.append(acc_test_2)
@@ -169,20 +166,13 @@ def lr_schedule(epoch):
 
         return lr
 
-def run_model(lookback_horizon, prediction_horizon, batch_size, epochs, depth, feature_set, name):
-    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_shaped_dataset(lookback_horizon, prediction_horizon, feature_set)
-
-    x_scaler = dm.processing.Normalizer().fit(X_train)
+def run_model(batch_size, epochs, depth, feature_set, name):
+    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(feature_set, normalize=True, shaped=True)
     
     x_shape = X_train.shape[1:]
     y_shape = y_train.shape[1:]
 
     model = build_model(x_shape, y_shape, depth)
-
-    X_train = x_scaler.transform(X_train)
-    X_test_1 = x_scaler.transform(X_test_1)
-    X_test_2 = x_scaler.transform(X_test_2)
-    X_test_combined = x_scaler.transform(X_test_combined)
 
     def train_model(model, x_train, y_train):# -> keras.callbacks.History:  
         lr_scheduler = LearningRateScheduler(lr_schedule)

@@ -14,14 +14,23 @@ from sklearn.model_selection import train_test_split
 
 from datamodels import datamodels as dm
 
+# Shape dimensions (if 'shaped' is True)
+LOOKBACK_HORIZON = 48
+PREDICTION_HORIZON = 1
+
 
 def load_dataset(
     dataset='uci',
     feature_set='full', # 'full', 'Light+CO2'
     historical_co2=False,
     normalize=False,
-    embedding=False
+    embedding=False,
+    shaped=False
     ):
+
+    if embedding and shaped:
+        print('Cannot use embedding on shaped dataset')
+        exit()
 
     features = get_feature_list(feature_set)
     
@@ -60,10 +69,26 @@ def load_dataset(
         if embedding:
             X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, _ = get_embeddings(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined)
 
+        if shaped:
+            X_train, y_train = dm.processing.shape.get_windows(
+                lookback_horizon, X_train.to_numpy(), prediction_horizon, y_train.to_numpy()
+            )
+            X_test_1, y_test_1 = dm.processing.shape.get_windows(
+                lookback_horizon, X_test_1.to_numpy(), prediction_horizon, y_test_1.to_numpy(),
+            )
+            X_test_2, y_test_2 = dm.processing.shape.get_windows(
+                lookback_horizon, X_test_2.to_numpy(), prediction_horizon, y_test_2.to_numpy(),
+            )
+            X_test_combined, y_test_combined = dm.processing.shape.get_windows(
+                lookback_horizon, X_test_combined.to_numpy(), prediction_horizon, y_test_combined.to_numpy(),
+            )
+        
         return X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined
 
     else:
         data = load_dataset_brick(dataset)
+
+        features.append('Room_ID')
 
         if historical_co2:
             features.append('CO2+1h')
@@ -79,7 +104,12 @@ def load_dataset(
         if embedding:
             X, y = get_embeddings(X, y)
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.8, shuffle=False) # TODO change test size
+        if shaped:
+            X, y = dm.processing.shape.get_windows(
+                LOOKBACK_HORIZON, X.to_numpy(), PREDICTION_HORIZON, y.to_numpy()
+            )
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, shuffle=False)
 
         return X_train, X_test, X_test.iloc[0:100], X_test.iloc[0:100], y_train, y_test, y_test.iloc[0:100], y_test.iloc[0:100] # Not the best solution, but test2 and test_combined are substituted by dummies here
 
@@ -92,7 +122,7 @@ def load_dataset_uci():
     test1 = test1.set_index('date')
     test2 = test2.set_index('date')
 
-    return [training, test1, test2]
+    return training, test1, test2
 
 def load_dataset_brick(country):
     filename_1 = {
@@ -101,7 +131,7 @@ def load_dataset_brick(country):
         'Italy': 'Italy/Indoor_Measurement_Study10.csv',
     }
     filename_2 = {
-        'Denmark': 'Denmark/Occupancy_Measurement_Study4.csv', # Doesn't exist
+        'Denmark': 'Denmark/Occupant_Number_Measurement_Study4.csv',
         'Australia': 'Australia/Occupancy_Measurement_Study7.csv',
         'Italy': 'Italy/Occupancy_Measurement_Study10.csv'
     }
@@ -109,48 +139,30 @@ def load_dataset_brick(country):
         'Indoor_Temp[C]': 'Temperature',
         'Indoor_RH[%]': 'Humidity',
         'Indoor_CO2[ppm]': 'CO2',
-        'Occupancy_Measurement[0-Unoccupied;1-Occupied]': 'Occupancy'
+        'Occupancy_Measurement[0-Unoccupied;1-Occupied]': 'Occupancy',
+        'Occupant_Number_Measurement': 'Occupancy'
     }
 
-    dataset_1 = pd.read_csv(str(ROOT_DIR) + '/occupancy_data/' + filename_1[country], index_col='Date_Time', na_values=-999)
-    dataset_2 = pd.read_csv(str(ROOT_DIR) + '/occupancy_data/' + filename_2[country], index_col='Date_Time', na_values=-999)
+    dataset_1 = pd.read_csv(str(ROOT_DIR) + '/occupancy_data/' + filename_1[country], index_col='Date_Time', na_values=-999, parse_dates=True)
+    dataset_2 = pd.read_csv(str(ROOT_DIR) + '/occupancy_data/' + filename_2[country], index_col='Date_Time', na_values=-999, parse_dates=True)
 
     dataset = pd.concat([dataset_1, dataset_2], axis=1)
 
     dataset = dataset.dropna()
+    dataset = dataset.loc[:,~dataset.columns.duplicated()] # Drop the second Room_ID column
 
     dataset = dataset.rename(columns=translate_columns)
 
-    dataset = dataset[translate_columns.values()]
+    if country == 'Denmark':
+        dataset[dataset['Occupancy'] > 0] = 1
+
+    dataset = dataset[['Temperature', 'Humidity', 'CO2', 'Room_ID', 'Occupancy']]
 
     return dataset
 
-def load_shaped_dataset(lookback_horizon, prediction_horizon, dataset='uci', feature_set='full', historical_co2=False, normalize=False):
-    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(dataset, feature_set, historical_co2, normalize)
-
-    X_train, y_train = dm.processing.shape.get_windows(
-        lookback_horizon, X_train.to_numpy(), prediction_horizon, y_train.to_numpy()
-    )
-
-    X_test_1, y_test_1 = dm.processing.shape.get_windows(
-        lookback_horizon, X_test_1.to_numpy(), prediction_horizon, y_test_1.to_numpy(),
-    )
-
-    X_test_2, y_test_2 = dm.processing.shape.get_windows(
-        lookback_horizon, X_test_2.to_numpy(), prediction_horizon, y_test_2.to_numpy(),
-    )
-
-    X_test_combined, y_test_combined = dm.processing.shape.get_windows(
-        lookback_horizon, X_test_combined.to_numpy(), prediction_horizon, y_test_combined.to_numpy(),
-    )
-
-    return X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined
-
 def get_embeddings(X, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined):
-    #X, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset()
-
     cat_vars = [
-        #'Week',
+        'Room_ID',
         'Weekday'
     ]
 
@@ -160,6 +172,9 @@ def get_embeddings(X, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_
     X_test_1['Weekday'] = X_test_1.index.weekday
     #X_test_2['Week'] = X_test_2.index.isocalendar().week
     X_test_2['Weekday'] = X_test_2.index.weekday
+    X_test_combined['Weekday'] = X_test_combined.index.weekday
+
+    cat_vars = X.columns.intersection(cat_vars)
 
     # Encoding
     X_combined = pd.concat([X, X_test_1, X_test_2])
@@ -171,6 +186,7 @@ def get_embeddings(X, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_
         X.loc[:, v] = le.transform(X[v].values)
         X_test_1.loc[:, v] = le.transform(X_test_1[v].values)
         X_test_2.loc[:, v] = le.transform(X_test_2[v].values)
+        X_test_combined.loc[:, v] = le.transform(X_test_combined[v].values)
         print('{0}: {1}'.format(v, le.classes_))
 
     # Normalizing
@@ -178,14 +194,13 @@ def get_embeddings(X, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_
         X[v] = X[v].astype('category').cat.as_ordered()
         X_test_1[v] = X_test_1[v].astype('category').cat.as_ordered()
         X_test_2[v] = X_test_2[v].astype('category').cat.as_ordered()
+        X_test_combined[v] = X_test_combined[v].astype('category').cat.as_ordered()
 
     # Reshape input
     X_array = []
     X_test_1_array = []
     X_test_2_array = []
     X_test_combined_array = []
-
-    X_test_combined = pd.concat([X_test_1, X_test_2])
 
     for i, v in enumerate(cat_vars):
         X_array.append(X.loc[:, v])
@@ -227,17 +242,20 @@ def summarize_results(
         'accuracy_train_std': np.std(scores_train),
         'accuracy_test_1_mean': np.mean(scores_test_1),
         'accuracy_test_1_std': np.std(scores_test_1),
-        'accuracy_test_2_mean': np.mean(scores_test_2),
-        'accuracy_test_2_std': np.std(scores_test_2),
-        'accuracy_test_combined_mean': np.mean(scores_test_combined),
-        'accuracy_test_combined_std': np.std(scores_test_combined)
     }
+
     suffix = ''
     if feature_set != '?' and feature_set != 'full':
         suffix += '_' + feature_set
     if embedding != '?' and embedding != False:
         suffix += '_embedding'
     if dataset == '?' or dataset == 'uci':
+        result.update({
+            'accuracy_test_2_mean': np.mean(scores_test_2),
+            'accuracy_test_2_std': np.std(scores_test_2),
+            'accuracy_test_combined_mean': np.mean(scores_test_combined),
+            'accuracy_test_combined_std': np.std(scores_test_combined)
+        })
         folder = 'results/'
     else:
         folder = 'results_' + dataset + '/'

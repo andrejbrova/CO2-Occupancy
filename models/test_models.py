@@ -21,19 +21,18 @@ from keras.layers import Dropout, Dense, Input, Reshape
 from keras.layers.embeddings import Embedding
 from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 
-from utils import load_shaped_dataset, summarize_results
+from utils import load_dataset, summarize_results
+from models.embedding.embedding import layers_embedding
 from datamodels import datamodels as dm
 
 
 def main():
-    dataset = 'Australia'
-    batch_size = 256 # 32 for uci
+    dataset = 'Denmark'
+    batch_size = 32 # 32 for uci
     epochs = 50
     repeats = 10
-    lookback_horizon = 48
-    prediction_horizon = 1
     historical_co2 = False
-    embedding = False
+    embedding = False # Wont work here
     feature_set = 'full'
     model_name = 'CNN'
 
@@ -42,8 +41,8 @@ def main():
         'SRNN': (dm.RecurrentNetwork, layers_SRNN)
     }
 
-    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_shaped_dataset(
-        lookback_horizon, prediction_horizon, dataset=dataset, historical_co2=historical_co2, normalize=True)
+    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(
+        dataset=dataset, feature_set=feature_set, historical_co2=historical_co2, normalize=True, embedding=embedding, shaped=True)
 
     """print(f'Training on {X_train.shape[0]} samples.')
     print(f'Testing on {X_test_1.shape[0]} samples (Test1).')

@@ -1,0 +1,2 @@
+,batch size,epochs,repeats,embedding,feature set,accuracy_train_mean,accuracy_train_std,accuracy_test_1_mean,accuracy_test_1_std
+CNN,32,3,2,True,full,1.0,0.0,1.0,0.0
