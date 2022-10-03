@@ -37,11 +37,10 @@ def main():
     batch_size = 16 # 64
     epochs = 30 # 200
     repeats = 10
-    lookback_horizon = 48
-    prediction_horizon = 1
+    historical_co2 = False
     embedding = True
     feature_set = 'Light+CO2'
-    name = 'autoencoder_embedding'
+    name = 'autoencoder'
 
     scores_train = []
     scores_test_1 = []
@@ -54,7 +53,7 @@ def main():
         print('Run ' + str(run + 1))
         set_random_seed(run)
         acc_train, acc_test_1, acc_test_2, acc_test_combined, autoencoder_train, classifier_train, encoded_representation, y_test_combined = run_model(
-            dataset, lookback_horizon, prediction_horizon, batch_size, epochs, embedding, feature_set, name)
+            dataset, batch_size, epochs, embedding, historical_co2, feature_set, name)
         scores_train.append(acc_train)
         scores_test_1.append(acc_test_1)
         scores_test_2.append(acc_test_2)
@@ -70,10 +69,10 @@ def main():
     loss_plot(autoencoders_train[max_value_index], name)
     acc_plot(classifiers_train[max_value_index], name)
 
-    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name, dataset, batch_size, epochs, repeats, embedding, feature_set)
+    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name, dataset, batch_size, epochs, repeats, embedding, feature_set, historical_co2)
 
-def run_model(dataset, lookback_horizon, prediction_horizon, batch_size, epochs, embedding, feature_set, name):
-    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(dataset=dataset, feature_set=feature_set, normalize=True, embedding=embedding)
+def run_model(dataset, batch_size, epochs, embedding, feature_set, historical_co2, name):
+    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(dataset=dataset, feature_set=feature_set, normalize=True, embedding=embedding, historical_co2=historical_co2)
 
     y_shape = y_train.shape[1:]
 
@@ -138,7 +137,7 @@ def run_model(dataset, lookback_horizon, prediction_horizon, batch_size, epochs,
 
 def build_autoencoder(embedding, X_train, target_shape):
     hidden_size = 128
-    code_size = 16
+    code_size = 2
 
     if embedding:
         input_shape = pd.concat(X_train, axis=1).shape
@@ -150,16 +149,16 @@ def build_autoencoder(embedding, X_train, target_shape):
 
     def encoder(input_layer):
         encoded = Dense(hidden_size, activation='relu', activity_regularizer = l1(10e-5), name='encoder_1')(input_layer)
-        encoded = Dense(hidden_size / 2, activation='relu', activity_regularizer = l1(10e-5), name='encoder_2')(encoded)
-        encoded = Dense(hidden_size / 4, activation='relu', activity_regularizer = l1(10e-5), name='encoder_3')(encoded)
+        encoded = Dense(hidden_size / 4, activation='relu', activity_regularizer = l1(10e-5), name='encoder_2')(encoded)
+        encoded = Dense(hidden_size / 8, activation='relu', activity_regularizer = l1(10e-5), name='encoder_3')(encoded)
         encoded = Dense(code_size, activation='relu', activity_regularizer = l1(10e-5), name='encoder_4')(encoded)
         return encoded
 
     encoded = encoder(x)
 
     def decoder(encoded):
-        decoded = Dense(hidden_size / 4, activation='relu')(encoded)
-        decoded = Dense(hidden_size / 2, activation='relu')(decoded)
+        decoded = Dense(hidden_size / 8, activation='relu')(encoded)
+        decoded = Dense(hidden_size / 4, activation='relu')(decoded)
         decoded = Dense(hidden_size, activation='relu')(decoded)
         decoded = Flatten()(decoded)
         decoded = Dense(input_shape[-1], activation='relu')(decoded)
@@ -168,7 +167,7 @@ def build_autoencoder(embedding, X_train, target_shape):
     def representation(encoded):
         representation = Flatten(name='classifier_1')(encoded)
         representation = Dense(hidden_size, activation='relu', name='classifier_2')(representation)
-        representation = Dense(2, activation='relu', name='classifier_3')(representation) # For plot_autoencoder
+        #representation = Dense(2, activation='relu', name='classifier_3')(representation) # For plot_autoencoder
         return representation
 
     representation = representation(encoded)
@@ -178,7 +177,7 @@ def build_autoencoder(embedding, X_train, target_shape):
         return classifier
 
     autoencoder_for_training = Model(inputs=input_layer, outputs=decoder(encoded))
-    autoencoder_for_representation = Model(inputs=input_layer, outputs=representation)
+    autoencoder_for_representation = Model(inputs=input_layer, outputs=encoded)
     autoencoder_for_classifier = Model(inputs=input_layer, outputs=classifier(representation)) # This one has a seperate output to be used for classification
     
     autoencoder_for_training.compile(loss='mse', optimizer=Adam(), metrics='mse')

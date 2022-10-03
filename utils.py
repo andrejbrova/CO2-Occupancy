@@ -71,16 +71,16 @@ def load_dataset(
 
         if shaped:
             X_train, y_train = dm.processing.shape.get_windows(
-                lookback_horizon, X_train.to_numpy(), prediction_horizon, y_train.to_numpy()
+                LOOKBACK_HORIZON, X_train.to_numpy(), PREDICTION_HORIZON, y_train.to_numpy()
             )
             X_test_1, y_test_1 = dm.processing.shape.get_windows(
-                lookback_horizon, X_test_1.to_numpy(), prediction_horizon, y_test_1.to_numpy(),
+                LOOKBACK_HORIZON, X_test_1.to_numpy(), PREDICTION_HORIZON, y_test_1.to_numpy(),
             )
             X_test_2, y_test_2 = dm.processing.shape.get_windows(
-                lookback_horizon, X_test_2.to_numpy(), prediction_horizon, y_test_2.to_numpy(),
+                LOOKBACK_HORIZON, X_test_2.to_numpy(), PREDICTION_HORIZON, y_test_2.to_numpy(),
             )
             X_test_combined, y_test_combined = dm.processing.shape.get_windows(
-                lookback_horizon, X_test_combined.to_numpy(), prediction_horizon, y_test_combined.to_numpy(),
+                LOOKBACK_HORIZON, X_test_combined.to_numpy(), PREDICTION_HORIZON, y_test_combined.to_numpy(),
             )
         
         return X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined
@@ -228,7 +228,8 @@ def summarize_results(
     epochs='?',
     repeats='?',
     embedding='?',
-    feature_set='?'
+    feature_set='?',
+    historical_co2='?'
     ):
     print(scores_train)
     print(scores_test_1)
@@ -238,6 +239,7 @@ def summarize_results(
         'repeats': repeats,
         'embedding': embedding,
         'feature set': feature_set,
+        'historical co2': historical_co2,
         'accuracy_train_mean': np.mean(scores_train),
         'accuracy_train_std': np.std(scores_train),
         'accuracy_test_1_mean': np.mean(scores_test_1),
@@ -250,7 +252,7 @@ def summarize_results(
     if embedding != '?' and embedding != False:
         suffix += '_embedding'
     if dataset == '?' or dataset == 'uci':
-        result.update({
+        result.update({ # Add evaluation for second and combined test set
             'accuracy_test_2_mean': np.mean(scores_test_2),
             'accuracy_test_2_std': np.std(scores_test_2),
             'accuracy_test_combined_mean': np.mean(scores_test_combined),
@@ -283,6 +285,9 @@ def get_feature_list(set='full'):
         ],
         'Light+CO2': [
             'Light',
+            'CO2'
+        ],
+        'CO2': [
             'CO2'
         ]
     }

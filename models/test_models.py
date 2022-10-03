@@ -27,14 +27,14 @@ from datamodels import datamodels as dm
 
 
 def main():
-    dataset = 'Denmark'
-    batch_size = 32 # 32 for uci
+    dataset = 'uci'
+    batch_size = 32
     epochs = 50
     repeats = 10
-    historical_co2 = False
+    historical_co2 = True
     embedding = False # Wont work here
-    feature_set = 'full'
-    model_name = 'CNN'
+    feature_set = 'CO2'
+    model_name = 'SRNN'
 
     models = {
         'CNN': (dm.ConvolutionNetwork, layers_CNN),
@@ -56,13 +56,13 @@ def main():
     for run in range(repeats):
         print('Run ' + str(run + 1))
         model = build_model(X_train.shape[0], X_train.shape[-1], 1, batch_size, epochs, models[model_name], model_name)
-        acc_train, acc_test_1, acc_test_2, acc_test_combined = run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, model, lookback_horizon, prediction_horizon)
+        acc_train, acc_test_1, acc_test_2, acc_test_combined = run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, model)
         scores_train.append(acc_train)
         scores_test_1.append(acc_test_1)
         scores_test_2.append(acc_test_2)
         scores_test_combined.append(acc_test_combined)
     
-    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name, dataset, batch_size, epochs, repeats, embedding, feature_set)
+    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name, dataset, batch_size, epochs, repeats, embedding, feature_set, historical_co2)
 
 def build_model(n_timesteps, n_features, target_shape, batch_size, epochs, model_type, name):
     
@@ -91,7 +91,7 @@ def build_model(n_timesteps, n_features, target_shape, batch_size, epochs, model
 
     return model
 
-def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, model, lookback_horizon, prediction_horizon):
+def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, model):
     model.train(X_train, y_train)
 
     y_pred_train = model.predict(X_train)
