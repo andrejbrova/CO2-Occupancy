@@ -38,7 +38,7 @@ def main():
     epochs = 30 # 200
     repeats = 10
     historical_co2 = False
-    embedding = True
+    embedding = False
     feature_set = 'full'
     name = 'autoencoder'
 

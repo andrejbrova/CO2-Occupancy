@@ -23,13 +23,14 @@ def main():
     feature_set='full'
     historical_co2=False
     batch_size = 32
-    epochs = 50
-    repeats = 10
+    epochs = 2
+    repeats = 2
     model_name = 'CNN'
 
     models = {
         'CNN': layers_CNN,
-        'GRU': layers_GRU
+        'GRU': layers_GRU,
+        'LSTM': layers_LSTM
     }
 
     run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repeats, models[model_name], model_name)
@@ -105,8 +106,8 @@ def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repe
         scores_test_1.append(acc_test_1)
         scores_test_2.append(acc_test_2)
         scores_test_combined.append(acc_test_combined)
-        
-    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name, dataset, batch_size, epochs, repeats, True, feature_set)
+
+    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name, dataset, batch_size, epochs, repeats, True, feature_set, historical_co2)
     
     for cat_var in encoders.keys():
         plot_embedding(models, dataset, encoders, cat_var, scores_test_1, model_name)
@@ -123,7 +124,7 @@ def plot_embedding(models, dataset, encoders, category, scores_test_1, model_nam
     colors = ['green', 'red']
     labels = ['Best Model', 'Worst Model']
 
-    fig, ax = plt.subplots(figsize=(8, 8 * 3 / 4))
+    plt.figure(figsize=(12, 8))
 
     for it, model in enumerate(models_to_plot):
         embedding_layer = model.get_layer(category)
@@ -132,9 +133,9 @@ def plot_embedding(models, dataset, encoders, category, scores_test_1, model_nam
         weights = pca.fit_transform(weights)
         weights_t = weights.T
 
-        ax.scatter(weights_t[0], weights_t[1], c=colors[it], label=labels[it])
+        plt.scatter(weights_t[0], weights_t[1], c=colors[it], label=labels[it])
         for i, day in enumerate(encoders[category].classes_):
-            ax.annotate(day, (weights_t[0, i], weights_t[1, i]))
+            plt.annotate(day, (weights_t[0, i], weights_t[1, i]))
             #fig.tight_layout()
 
     plt.title('PCA of the weights of the embedding "' + category + '" layer')
@@ -194,6 +195,17 @@ def layers_CNN(x):
     x = keras.layers.Dense(units=32, activation="relu")(x)
     x = keras.layers.Flatten()(x)
     x = keras.layers.Dropout(0.2)(x)
+    
+    return x
+
+def layers_LSTM(X):
+    hidden_layer_size = 32
+
+    x = keras.layers.Dropout(0.2)(x)
+    x = keras.layers.LSTM(units=64)(x)
+    x = keras.layers.Dropout(0.2)(x)
+    x = keras.layers.Dense(units=hidden_layer_size, activation='relu')(x)
+    x = keras.layers.Dense(units=target_shape[0], activation='sigmoid')(x)
     
     return x
 
