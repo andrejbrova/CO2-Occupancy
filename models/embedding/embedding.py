@@ -3,26 +3,19 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).parents[2]
 sys.path.append(str(ROOT_DIR))
-sys.path.append(str(ROOT_DIR.parent) + '/Repos/datascience/') # Path to datamodel location
 
 from matplotlib import pyplot as plt
 from tensorflow import keras
 from keras import layers
-from keras.models import Sequential
 from keras.metrics import BinaryAccuracy
-from sklearn.metrics import accuracy_score
 from sklearn.decomposition import PCA
-
-from keras import backend as K
-from keras import regularizers
 from keras.models import Model
-from keras.layers import Activation, BatchNormalization, Concatenate
+from keras.layers import Activation, Concatenate
 from keras.layers import Dropout, Dense, Input, Reshape
 from keras.layers.embeddings import Embedding
 from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 
 from utils import load_dataset, get_embeddings, summarize_results
-from datamodels import datamodels as dm
 
 
 def main():
@@ -30,8 +23,8 @@ def main():
     feature_set='full'
     historical_co2=False
     batch_size = 32
-    epochs = 3 #50
-    repeats = 2
+    epochs = 50
+    repeats = 10
     model_name = 'CNN'
 
     models = {
@@ -43,7 +36,12 @@ def main():
 
 def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repeats, model_layers, model_name):
     X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(
-        dataset=dataset, feature_set=feature_set, historical_co2=historical_co2, normalize=True)
+        dataset=dataset,
+        feature_set=feature_set,
+        historical_co2=historical_co2,
+        normalize=True,
+        shaped=False
+    )
     X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, encoders = get_embeddings(
         X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined)
 
@@ -107,6 +105,7 @@ def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repe
         scores_test_1.append(acc_test_1)
         scores_test_2.append(acc_test_2)
         scores_test_combined.append(acc_test_combined)
+        
     summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name, dataset, batch_size, epochs, repeats, True, feature_set)
     
     for cat_var in encoders.keys():

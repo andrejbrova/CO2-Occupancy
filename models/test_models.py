@@ -5,24 +5,15 @@ ROOT_DIR = Path(__file__).parents[1]
 sys.path.append(str(ROOT_DIR))
 sys.path.append(str(ROOT_DIR.parent) + '/Repos/datascience/') # Path to datamodel location
 
-from matplotlib import pyplot as plt
 from tensorflow import keras
-from keras import layers
 from keras.models import Sequential
 from keras.metrics import BinaryAccuracy
-from sklearn.metrics import accuracy_score
-from sklearn.decomposition import PCA
 
-from keras import backend as K
-from keras import regularizers
-from keras.models import Model
-from keras.layers import Activation, BatchNormalization, Concatenate
-from keras.layers import Dropout, Dense, Input, Reshape
+from keras.layers import Activation
+from keras.layers import Dropout, Dense, Input
 from keras.layers.embeddings import Embedding
-from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 
 from utils import load_dataset, summarize_results
-from models.embedding.embedding import layers_embedding
 from datamodels import datamodels as dm
 
 
@@ -34,20 +25,24 @@ def main():
     historical_co2 = True
     embedding = False # Wont work here
     feature_set = 'CO2'
-    model_name = 'SRNN'
+    model_name = 'GRU'
+    shaped = True
 
     models = {
         'CNN': (dm.ConvolutionNetwork, layers_CNN),
-        'SRNN': (dm.RecurrentNetwork, layers_SRNN)
+        'SRNN': (dm.RecurrentNetwork, layers_SRNN),
+        'LSTM': (dm.VanillaLSTM, layers_CNN),
+        'GRU': (dm.GRU, layers_GRU)
     }
 
     X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(
-        dataset=dataset, feature_set=feature_set, historical_co2=historical_co2, normalize=True, embedding=embedding, shaped=True)
-
-    """print(f'Training on {X_train.shape[0]} samples.')
-    print(f'Testing on {X_test_1.shape[0]} samples (Test1).')
-    print(f'Testing on {X_test_2.shape[0]} samples (Test2).')
-    print(f'input: {X_train.shape[-1]} features ({X_train.columns.tolist()}).')"""
+        dataset=dataset,
+        feature_set=feature_set,
+        historical_co2=historical_co2,
+        normalize=True,
+        embedding=embedding,
+        shaped=shaped
+    )
 
     scores_train = []
     scores_test_1 = []
@@ -139,6 +134,34 @@ def layers_SRNN(input_shape: tuple, target_shape: tuple) -> keras.Model:
             keras.layers.Dense(units=target_shape[0], activation='sigmoid')
         ]
     )
+
+def layers_LSTM(input_shape: tuple, target_shape: tuple) -> keras.Model:
+    hidden_layer_size = 32
+    return keras.Sequential(
+        [
+            keras.Input(shape=input_shape),
+            keras.layers.Dropout(0.2),
+            keras.layers.LSTM(units=64),
+            keras.layers.Dropout(0.2),
+            keras.layers.Dense(units=hidden_layer_size, activation='relu'),
+            keras.layers.Dense(units=target_shape[0], activation='sigmoid')
+        ]
+    )
+
+def layers_GRU(input_shape: tuple, target_shape: tuple) -> keras.Model:
+    hidden_layer_size = 32
+    return keras.Sequential(
+        [
+            keras.Input(shape=input_shape),
+            keras.layers.GRU(return_sequences=True, units=64),
+            keras.layers.Dropout(0.2),
+            keras.layers.GRU(return_sequences=True, units=64),
+            keras.layers.GRU(units=64),
+            keras.layers.Dropout(0.2),
+            keras.layers.Dense(units=hidden_layer_size, activation='relu'),
+            keras.layers.Dense(units=target_shape[0])
+        ]
+        )
 
 if __name__ == '__main__':
     main()

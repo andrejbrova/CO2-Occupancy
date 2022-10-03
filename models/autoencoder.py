@@ -39,7 +39,7 @@ def main():
     repeats = 10
     historical_co2 = False
     embedding = True
-    feature_set = 'Light+CO2'
+    feature_set = 'full'
     name = 'autoencoder'
 
     scores_train = []
@@ -71,7 +71,7 @@ def main():
 
     summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name, dataset, batch_size, epochs, repeats, embedding, feature_set, historical_co2)
 
-def run_model(dataset, batch_size, epochs, embedding, feature_set, historical_co2, name):
+def run_model(dataset, batch_size, epochs, embedding, historical_co2, feature_set, name):
     X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(dataset=dataset, feature_set=feature_set, normalize=True, embedding=embedding, historical_co2=historical_co2)
 
     y_shape = y_train.shape[1:]
@@ -98,8 +98,6 @@ def run_model(dataset, batch_size, epochs, embedding, feature_set, historical_co
     for layer in autoencoder_for_classifier.layers:
         if layer.name not in ['classifier_1', 'classifier_2', 'classifier_3', 'classifier_4']:
             layer.trainable = False
-
-    #classifier = build_classifier(autoencoder_for_classifier, y_shape)
 
     print(autoencoder_for_training.get_weights()[0][1])
     print(autoencoder_for_classifier.get_weights()[0][1])
@@ -129,8 +127,6 @@ def run_model(dataset, batch_size, epochs, embedding, feature_set, historical_co
     acc_test_2 = BinaryAccuracy()(y_test_2, pred_test_2)
     acc_test_combined = BinaryAccuracy()(y_test_combined, pred_test_combined)
 
-    #representation = build_representation(classifier)
-
     encoded_representation = autoencoder_for_representation.predict(X_test_combined)
 
     return acc_train, acc_test_1, acc_test_2, acc_test_combined, autoencoder_train, classifier_train, encoded_representation, y_test_combined
@@ -148,7 +144,8 @@ def build_autoencoder(embedding, X_train, target_shape):
         x = input_layer
 
     def encoder(input_layer):
-        encoded = Dense(hidden_size, activation='relu', activity_regularizer = l1(10e-5), name='encoder_1')(input_layer)
+        encoded = Flatten()(input_layer)
+        encoded = Dense(hidden_size, activation='relu', activity_regularizer = l1(10e-5), name='encoder_1')(encoded)
         encoded = Dense(hidden_size / 4, activation='relu', activity_regularizer = l1(10e-5), name='encoder_2')(encoded)
         encoded = Dense(hidden_size / 8, activation='relu', activity_regularizer = l1(10e-5), name='encoder_3')(encoded)
         encoded = Dense(code_size, activation='relu', activity_regularizer = l1(10e-5), name='encoder_4')(encoded)
@@ -166,7 +163,7 @@ def build_autoencoder(embedding, X_train, target_shape):
 
     def representation(encoded):
         representation = Flatten(name='classifier_1')(encoded)
-        representation = Dense(hidden_size, activation='relu', name='classifier_2')(representation)
+        representation = Dense(hidden_size / 2, activation='relu', name='classifier_2')(representation)
         #representation = Dense(2, activation='relu', name='classifier_3')(representation) # For plot_autoencoder
         return representation
 
@@ -187,30 +184,6 @@ def build_autoencoder(embedding, X_train, target_shape):
     autoencoder_for_training.summary()
 
     return autoencoder_for_training, autoencoder_for_representation, autoencoder_for_classifier
-
-def build_classifier(autoencoder, input_layer, target_shape):
-    hidden_size = 128
-
-    classifier = autoencoder.outputs[0]
-    classifier = Flatten()(classifier)
-    classifier = Dense(hidden_size, activation='relu')(classifier)
-    classifier = Dense(2, activation='relu')(classifier) # For plot_autoencoder
-    classifier = Dense(units=target_shape[0], activation='sigmoid')(classifier)
-
-    # Weights of the trained encoder shouldnt be changed
-    for layer in classifier.layers[0:5]:
-        layer.trainable = False
-
-    classifier.compile(loss='binary_crossentropy', optimizer='adam', metrics='binary_accuracy')
-
-    classifier.summary()
-
-    return classifier
-
-def build_representation(classifier):
-    representation = Sequential(classifier.layers[0:-1])
-
-    return representation
 
 def loss_plot(autoencoder_train, model_name):
     loss = autoencoder_train.history['loss']

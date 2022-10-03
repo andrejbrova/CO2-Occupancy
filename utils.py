@@ -14,14 +14,14 @@ from sklearn.model_selection import train_test_split
 
 from datamodels import datamodels as dm
 
-# Shape dimensions (if 'shaped' is True)
+
+# Shape dimensions (used when 'shaped' is True)
 LOOKBACK_HORIZON = 48
 PREDICTION_HORIZON = 1
 
-
 def load_dataset(
-    dataset='uci',
-    feature_set='full', # 'full', 'Light+CO2'
+    dataset='uci', # 'uci', 'Australia', 'Denmark', 'Italy'
+    feature_set='full', # 'full', 'Light+CO2', 'CO2'
     historical_co2=False,
     normalize=False,
     embedding=False,
@@ -65,6 +65,11 @@ def load_dataset(
             X_test_1 = x_scaler.transform(X_test_1)
             X_test_2 = x_scaler.transform(X_test_2)
             X_test_combined = x_scaler.transform(X_test_combined)
+
+        print(f'Training on {X_train.shape[0]} samples.')
+        print(f'Testing on {X_test_1.shape[0]} samples (Test1).')
+        print(f'Testing on {X_test_2.shape[0]} samples (Test2).')
+        print(f'input: {X_train.shape[-1]} features ({X_train.columns.tolist()}).')
 
         if embedding:
             X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, _ = get_embeddings(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined)
@@ -166,11 +171,8 @@ def get_embeddings(X, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_
         'Weekday'
     ]
 
-    #X['Week'] = X.index.isocalendar().week
     X['Weekday'] = X.index.weekday
-    #X_test_1['Week'] = X_test_1.index.isocalendar().week
     X_test_1['Weekday'] = X_test_1.index.weekday
-    #X_test_2['Week'] = X_test_2.index.isocalendar().week
     X_test_2['Weekday'] = X_test_2.index.weekday
     X_test_combined['Weekday'] = X_test_combined.index.weekday
 
