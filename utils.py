@@ -72,7 +72,7 @@ def load_dataset(
         print(f'input: {X_train.shape[-1]} features ({X_train.columns.tolist()}).')
 
         if embedding:
-            X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, _ = get_embeddings(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined)
+            X_train, X_test_1, X_test_2, X_test_combined, _ = get_embeddings(X_train, X_test_1, X_test_2, X_test_combined)
 
         if shaped:
             X_train, y_train = dm.processing.shape.get_windows(
@@ -103,11 +103,10 @@ def load_dataset(
         y = pd.DataFrame(data.loc[:,'Occupancy'])
 
         if normalize:
-            x_scaler = dm.processing.Normalizer().fit(X)
-            X = x_scaler.transform(X)
-
-        if embedding:
-            X, y = get_embeddings(X, y)
+            X_scaleable = X.select_dtypes(exclude='category')
+            x_scaler = dm.processing.Normalizer().fit(X_scaleable)
+            X_scaleable = x_scaler.transform(X_scaleable)
+            X[X_scaleable.columns] = X_scaleable
 
         if shaped:
             X, y = dm.processing.shape.get_windows(
@@ -116,7 +115,13 @@ def load_dataset(
 
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, shuffle=False)
 
-        return X_train, X_test, X_test.iloc[0:100], X_test.iloc[0:100], y_train, y_test, y_test.iloc[0:100], y_test.iloc[0:100] # Not the best solution, but test2 and test_combined are substituted by dummies here
+        X_test_2 = X_test.iloc[0:100] # Not the best solution, but test2 and test_combined are substituted by dummies here
+        X_test_combined = X_test.iloc[0:100]
+
+        if embedding:
+            X_train, X_test, X_test_2, X_test_combined, _ = get_embeddings(X_train, X_test, X_test_2, X_test_combined)
+
+        return X_train, X_test, X_test_2, X_test_combined, y_train, y_test, y_test.iloc[0:100], y_test.iloc[0:100]
 
 def load_dataset_uci():
     training = pd.read_csv(str(ROOT_DIR) + '/occupancy_data/datatraining.txt', parse_dates=['date'])
@@ -152,20 +157,22 @@ def load_dataset_brick(country):
     dataset_2 = pd.read_csv(str(ROOT_DIR) + '/occupancy_data/' + filename_2[country], index_col='Date_Time', na_values=-999, parse_dates=True)
 
     dataset = pd.concat([dataset_1, dataset_2], axis=1)
+    dataset = dataset.sort_index()
 
     dataset = dataset.dropna()
     dataset = dataset.loc[:,~dataset.columns.duplicated()] # Drop the second Room_ID column
+    dataset['Room_ID'] = dataset['Room_ID'].astype('category')
 
     dataset = dataset.rename(columns=translate_columns)
 
     if country == 'Denmark':
-        dataset[dataset['Occupancy'] > 0] = 1
+        dataset['Occupancy'][dataset['Occupancy'] > 0] = 1
 
     dataset = dataset[['Temperature', 'Humidity', 'CO2', 'Room_ID', 'Occupancy']]
 
     return dataset
 
-def get_embeddings(X, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined):
+def get_embeddings(X, X_test_1, X_test_2, X_test_combined):
     cat_vars = [
         'Room_ID',
         'Weekday'
@@ -217,7 +224,7 @@ def get_embeddings(X, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_
 
     len(X_array), len(X_test_1_array), len(X_test_2_array)
 
-    return X_array, X_test_1_array, X_test_2_array, X_test_combined_array, y_train, y_test_1, y_test_2, y_test_combined, encoders
+    return X_array, X_test_1_array, X_test_2_array, X_test_combined_array, encoders
 
 def summarize_results(
     scores_train,

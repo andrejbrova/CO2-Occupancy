@@ -1,0 +1,2 @@
+,batch size,epochs,repeats,embedding,feature set,historical co2,accuracy_train_mean,accuracy_train_std,accuracy_test_1_mean,accuracy_test_1_std,accuracy_test_2_mean,accuracy_test_2_std,accuracy_test_combined_mean,accuracy_test_combined_std
+GRU,32,50,10,False,CO2,True,0.8665019,0.052691948,0.78868073,0.093977354,0.72831374,0.07105393,0.7405143,0.04521712

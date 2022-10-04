@@ -19,13 +19,13 @@ from utils import load_dataset, get_embeddings, summarize_results
 
 
 def main():
-    dataset = 'Denmark'
+    dataset = 'Australia'
     feature_set='full'
     historical_co2=False
     batch_size = 32
     epochs = 2
     repeats = 2
-    model_name = 'CNN'
+    model_name = 'LSTM'
 
     models = {
         'CNN': layers_CNN,
@@ -43,47 +43,8 @@ def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repe
         normalize=True,
         shaped=False
     )
-    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, encoders = get_embeddings(
-        X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined)
-
-    def build_model(input_shape: tuple, target_shape: tuple) -> keras.Model:
-        inputs, x = layers_embedding(X_train)
-
-        x = model_layers(x)
-
-        x = keras.layers.Dense(target_shape[0], activation='sigmoid')(x)
-
-        return Model(inputs=inputs, outputs=x)
-
-    def train_model(model, x_train, y_train) -> keras.callbacks.History:
-        callbacks_list = [
-            ReduceLROnPlateau(monitor='binary_accuracy', factor=0.2, patience=3,
-                               verbose=1, mode='auto', min_delta=10, cooldown=0,
-                               min_lr=0.0001),
-            ModelCheckpoint('best_model_weights.hdf5', monitor='binary_accuracy',
-                                save_best_only=True),
-            keras.callbacks.EarlyStopping(monitor='binary_accuracy', patience=10)
-        ]
-        model.fit(
-            x_train, y_train,
-            epochs=epochs,
-            batch_size=batch_size,
-            validation_split=0.2,
-            callbacks=callbacks_list
-        )
-
-    def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, model):
-        y_pred_train = model.predict(X_train)
-        y_pred_test_1 = model.predict(X_test_1)
-        y_pred_test_2 = model.predict(X_test_2)
-        y_pred_test_combined = model.predict(X_test_combined)
-
-        acc_train = BinaryAccuracy()(y_train, y_pred_train)
-        acc_test_1 = BinaryAccuracy()(y_test_1, y_pred_test_1)
-        acc_test_2 = BinaryAccuracy()(y_test_2, y_pred_test_2)
-        acc_test_combined = BinaryAccuracy()(y_test_combined, y_pred_test_combined)
-
-        return acc_train, acc_test_1, acc_test_2, acc_test_combined
+    X_train, X_test_1, X_test_2, X_test_combined, encoders = get_embeddings(
+        X_train, X_test_1, X_test_2, X_test_combined)
     
     models = []
     scores_train = []
@@ -92,14 +53,8 @@ def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repe
     scores_test_combined = []
     for run in range(repeats):
         print('Run ' + str(run + 1))
-
-        model = build_model((1,), (1,))
-        optimizer = keras.optimizers.Adam()
-        model.compile(loss='binary_crossentropy', optimizer='adam', metrics='binary_accuracy')
-        print(model.summary())
-
-        train_model(model, X_train, y_train)
-        acc_train, acc_test_1, acc_test_2, acc_test_combined = run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, model)
+        
+        acc_train, acc_test_1, acc_test_2, acc_test_combined, model = run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, batch_size, epochs, model_layers)
         
         models.append(model)
         scores_train.append(acc_train)
@@ -110,7 +65,46 @@ def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repe
     summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name, dataset, batch_size, epochs, repeats, True, feature_set, historical_co2)
     
     for cat_var in encoders.keys():
-        plot_embedding(models, dataset, encoders, cat_var, scores_test_1, model_name)
+        plot_embedding(models, dataset, encoders, cat_var, scores_test_1, model_name)        
+
+def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, batch_size, epochs, model_layers):
+    inputs, x = layers_embedding(X_train)
+    x = model_layers(x)
+    x = keras.layers.Dense(1, activation='sigmoid')(x)
+
+    model = Model(inputs=inputs, outputs=x)
+
+    model.compile(loss='binary_crossentropy', optimizer='adam', metrics='binary_accuracy')
+    print(model.summary())
+
+    callbacks_list = [
+        ReduceLROnPlateau(monitor='binary_accuracy', factor=0.2, patience=3,
+                            verbose=1, mode='auto', min_delta=10, cooldown=0,
+                            min_lr=0.0001),
+        ModelCheckpoint('best_model_weights.hdf5', monitor='binary_accuracy',
+                            save_best_only=True),
+        keras.callbacks.EarlyStopping(monitor='binary_accuracy', patience=10)
+    ]
+
+    model.fit(
+        X_train, y_train,
+        epochs=epochs,
+        batch_size=batch_size,
+        validation_split=0.2,
+        callbacks=callbacks_list
+    )
+    
+    y_pred_train = model.predict(X_train)
+    y_pred_test_1 = model.predict(X_test_1)
+    y_pred_test_2 = model.predict(X_test_2)
+    y_pred_test_combined = model.predict(X_test_combined)
+
+    acc_train = BinaryAccuracy()(y_train, y_pred_train)
+    acc_test_1 = BinaryAccuracy()(y_test_1, y_pred_test_1)
+    acc_test_2 = BinaryAccuracy()(y_test_2, y_pred_test_2)
+    acc_test_combined = BinaryAccuracy()(y_test_combined, y_pred_test_combined)
+
+    return acc_train, acc_test_1, acc_test_2, acc_test_combined, model
 
 def plot_embedding(models, dataset, encoders, category, scores_test_1, model_name):
     # Find best and worst model
@@ -198,14 +192,13 @@ def layers_CNN(x):
     
     return x
 
-def layers_LSTM(X):
+def layers_LSTM(x):
     hidden_layer_size = 32
 
     x = keras.layers.Dropout(0.2)(x)
     x = keras.layers.LSTM(units=64)(x)
     x = keras.layers.Dropout(0.2)(x)
     x = keras.layers.Dense(units=hidden_layer_size, activation='relu')(x)
-    x = keras.layers.Dense(units=target_shape[0], activation='sigmoid')(x)
     
     return x
 

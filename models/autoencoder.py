@@ -33,14 +33,16 @@ from models.embedding.embedding import layers_embedding
 
 
 def main():
-    dataset = 'uci'
-    batch_size = 16 # 64
-    epochs = 30 # 200
-    repeats = 10
+    dataset = 'Denmark'
+    batch_size = 32 # 64
+    epochs = 2 # 200
+    repeats = 2
     historical_co2 = False
-    embedding = False
+    embedding = True
     feature_set = 'full'
     name = 'autoencoder'
+
+    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(dataset=dataset, feature_set=feature_set, normalize=True, embedding=embedding, historical_co2=historical_co2)
 
     scores_train = []
     scores_test_1 = []
@@ -53,7 +55,7 @@ def main():
         print('Run ' + str(run + 1))
         set_random_seed(run)
         acc_train, acc_test_1, acc_test_2, acc_test_combined, autoencoder_train, classifier_train, encoded_representation, y_test_combined = run_model(
-            dataset, batch_size, epochs, embedding, historical_co2, feature_set, name)
+            X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, dataset, batch_size, epochs, embedding, historical_co2, feature_set, name)
         scores_train.append(acc_train)
         scores_test_1.append(acc_test_1)
         scores_test_2.append(acc_test_2)
@@ -71,9 +73,7 @@ def main():
 
     summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name, dataset, batch_size, epochs, repeats, embedding, feature_set, historical_co2)
 
-def run_model(dataset, batch_size, epochs, embedding, historical_co2, feature_set, name):
-    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(dataset=dataset, feature_set=feature_set, normalize=True, embedding=embedding, historical_co2=historical_co2)
-
+def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, dataset, batch_size, epochs, embedding, historical_co2, feature_set, name):
     y_shape = y_train.shape[1:]
 
     # Train autoencoder:

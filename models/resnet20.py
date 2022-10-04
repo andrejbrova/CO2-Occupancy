@@ -22,19 +22,17 @@ from utils import load_dataset, summarize_results
 
 
 def main():
+    dataset = 'uci'
     batch_size = 32
     epochs = 50 # 100
-    repeats = 10 # 10
+    repeats = 10
+    historical_co2 = True
+    #shaped = True
     n = 3
-    feature_set='Light+CO2'
+    feature_set='CO2'
     name = 'resnet20'
 
     depth = n * 6 + 2
-
-    """print(f'Training on {X_train.shape[0]} samples.')
-    print(f'Testing on {X_test_1.shape[0]} samples (Test1).')
-    print(f'Testing on {X_test_2.shape[0]} samples (Test2).')
-    print(f'input: {X_train.shape[-1]} features ({X_train.columns.tolist()}).')"""
 
     scores_train = []
     scores_test_1 = []
@@ -42,13 +40,57 @@ def main():
     scores_test_combined = []
     for run in range(repeats):
         print('Run ' + str(run + 1))
-        acc_train, acc_test_1, acc_test_2, acc_test_combined = run_model(batch_size, epochs, depth, feature_set, name)
+        acc_train, acc_test_1, acc_test_2, acc_test_combined = run_model(
+            dataset, batch_size, epochs, historical_co2, depth, feature_set, name)
         scores_train.append(acc_train)
         scores_test_1.append(acc_test_1)
         scores_test_2.append(acc_test_2)
         scores_test_combined.append(acc_test_combined)
 
     summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name, batch_size, epochs, repeats, False, feature_set)
+
+def run_model(dataset, batch_size, epochs, historical_co2, depth, feature_set, name):
+    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(
+        dataset=dataset, feature_set=feature_set, historical_co2=historical_co2, normalize=True, shaped=True)
+    
+    x_shape = X_train.shape[1:]
+    y_shape = y_train.shape[1:]
+
+    model = build_model(x_shape, y_shape, depth)
+
+    def train_model(model, x_train, y_train):# -> keras.callbacks.History:  
+        lr_scheduler = LearningRateScheduler(lr_schedule)
+        
+        lr_reducer = ReduceLROnPlateau(factor = np.sqrt(0.1),
+                                    cooldown = 0,
+                                    patience = 5,
+                                    min_lr = 0.5e-6)
+        
+        callbacks = [lr_reducer, lr_scheduler]
+        
+        return model.fit(
+            x_train, y_train,
+            batch_size = batch_size,
+            epochs = epochs,
+            validation_split=0.2,
+            shuffle = True,
+            callbacks = callbacks
+        )
+
+    train_model(model, X_train, y_train)
+
+    y_pred_train = model.predict(X_train)
+    y_pred_test_1 = model.predict(X_test_1)
+    y_pred_test_2 = model.predict(X_test_2)
+    y_pred_test_combined = model.predict(X_test_combined)
+
+    acc_train = BinaryAccuracy()(y_train, y_pred_train)
+    acc_test_1 = BinaryAccuracy()(y_test_1, y_pred_test_1)
+    acc_test_2 = BinaryAccuracy()(y_test_2, y_pred_test_2)
+    acc_test_combined = BinaryAccuracy()(y_test_combined, y_pred_test_combined)
+
+    return acc_train, acc_test_1, acc_test_2, acc_test_combined
+
 
 def build_model(input_shape, target_shape, depth):
 
@@ -165,47 +207,6 @@ def lr_schedule(epoch):
         print('Learning rate: ', lr)
 
         return lr
-
-def run_model(batch_size, epochs, depth, feature_set, name):
-    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(feature_set, normalize=True, shaped=True)
-    
-    x_shape = X_train.shape[1:]
-    y_shape = y_train.shape[1:]
-
-    model = build_model(x_shape, y_shape, depth)
-
-    def train_model(model, x_train, y_train):# -> keras.callbacks.History:  
-        lr_scheduler = LearningRateScheduler(lr_schedule)
-        
-        lr_reducer = ReduceLROnPlateau(factor = np.sqrt(0.1),
-                                    cooldown = 0,
-                                    patience = 5,
-                                    min_lr = 0.5e-6)
-        
-        callbacks = [lr_reducer, lr_scheduler]
-        
-        return model.fit(
-            x_train, y_train,
-            batch_size = batch_size,
-            epochs = epochs,
-            validation_split=0.2,
-            shuffle = True,
-            callbacks = callbacks
-        )
-
-    train_model(model, X_train, y_train)
-
-    y_pred_train = model.predict(X_train)
-    y_pred_test_1 = model.predict(X_test_1)
-    y_pred_test_2 = model.predict(X_test_2)
-    y_pred_test_combined = model.predict(X_test_combined)
-
-    acc_train = BinaryAccuracy()(y_train, y_pred_train)
-    acc_test_1 = BinaryAccuracy()(y_test_1, y_pred_test_1)
-    acc_test_2 = BinaryAccuracy()(y_test_2, y_pred_test_2)
-    acc_test_combined = BinaryAccuracy()(y_test_combined, y_pred_test_combined)
-
-    return acc_train, acc_test_1, acc_test_2, acc_test_combined
 
 if __name__ == '__main__':
     main()
