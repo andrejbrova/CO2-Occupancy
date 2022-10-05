@@ -159,16 +159,18 @@ def load_dataset_brick(country):
     dataset = pd.concat([dataset_1, dataset_2], axis=1)
     dataset = dataset.sort_index()
 
-    dataset = dataset.dropna()
     dataset = dataset.loc[:,~dataset.columns.duplicated()] # Drop the second Room_ID column
     dataset['Room_ID'] = dataset['Room_ID'].astype('category')
 
     dataset = dataset.rename(columns=translate_columns)
 
+    dataset = dataset[['Temperature', 'Humidity', 'CO2', 'Room_ID', 'Occupancy']]
+    if country == 'Italy':
+        dataset = dataset.loc[:, dataset.columns != 'Humidity']
+    dataset = dataset.dropna()
+
     if country == 'Denmark':
         dataset['Occupancy'][dataset['Occupancy'] > 0] = 1
-
-    dataset = dataset[['Temperature', 'Humidity', 'CO2', 'Room_ID', 'Occupancy']]
 
     return dataset
 

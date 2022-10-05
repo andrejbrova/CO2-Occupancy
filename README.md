@@ -37,6 +37,7 @@ These models no longer use PCA or TSNE for the representation. Instead, the size
 
 - New datasets (Australia, Denmark, Italy)
 Used with models CNN, LSTM and Autoencoder (TODO)
+Italy doesn't include the Humidity-feature because of the large amount of nan-values.
 0.33 test size with shuffle=False
 
 | dataset   | feature_set | batch_size | epochs | repeats | historical_co2 | embedding | shaped |

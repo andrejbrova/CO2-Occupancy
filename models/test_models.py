@@ -49,7 +49,7 @@ def main():
     scores_test_2 = []
     scores_test_combined = []
     for run in range(repeats):
-        print('Run ' + str(run + 1))
+        print('Run: ' + str(run + 1) + ', Dataset: ' + dataset + ', Model: ' + model_name)
         model = build_model(X_train.shape[0], X_train.shape[-1], 1, batch_size, epochs, models[model_name], model_name)
         acc_train, acc_test_1, acc_test_2, acc_test_combined = run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, model)
         scores_train.append(acc_train)
@@ -67,7 +67,7 @@ def build_model(n_timesteps, n_features, target_shape, batch_size, epochs, model
 
     def train_model(model, x_train, y_train) -> keras.callbacks.History:
         callbacks_list = [
-            keras.callbacks.EarlyStopping(monitor='binary_accuracy', patience=10)
+            keras.callbacks.EarlyStopping(monitor='val_binary_accuracy', patience=10)
         ]
         return model.fit(
             x_train, y_train,

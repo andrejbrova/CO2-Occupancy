@@ -33,13 +33,13 @@ from models.embedding.embedding import layers_embedding
 
 
 def main():
-    dataset = 'Denmark'
+    dataset = 'uci'
     batch_size = 32 # 64
-    epochs = 2 # 200
-    repeats = 2
-    historical_co2 = False
-    embedding = True
-    feature_set = 'full'
+    epochs = 50 # 200
+    repeats = 10
+    historical_co2 = True
+    embedding = False
+    feature_set = 'CO2'
     name = 'autoencoder'
 
     X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(dataset=dataset, feature_set=feature_set, normalize=True, embedding=embedding, historical_co2=historical_co2)
@@ -52,7 +52,7 @@ def main():
     classifiers_train = []
     encoded_representations = []
     for run in range(repeats):
-        print('Run ' + str(run + 1))
+        print('Run: ' + str(run + 1) + ', Dataset: ' + dataset + ', Model: ' + name)
         set_random_seed(run)
         acc_train, acc_test_1, acc_test_2, acc_test_combined, autoencoder_train, classifier_train, encoded_representation, y_test_combined = run_model(
             X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, dataset, batch_size, epochs, embedding, historical_co2, feature_set, name)
@@ -85,12 +85,17 @@ def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y
     else:
         X_train_target = X_train
 
+    callbacks_list = [
+        keras.callbacks.EarlyStopping(monitor='val_binary_accuracy', patience=10)
+    ]
+
     autoencoder_train = autoencoder_for_training.fit(
         X_train, X_train_target,
         batch_size = batch_size,
         epochs = epochs,
         validation_split=0.2,
         shuffle = True,
+        callbacks = callbacks_list,
     )
 
     # Train classifier:

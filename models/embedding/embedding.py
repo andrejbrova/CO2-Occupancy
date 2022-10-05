@@ -19,7 +19,7 @@ from utils import load_dataset, get_embeddings, summarize_results
 
 
 def main():
-    dataset = 'Australia'
+    dataset = 'Italy'
     feature_set='full'
     historical_co2=False
     batch_size = 32
@@ -52,7 +52,7 @@ def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repe
     scores_test_2 = []
     scores_test_combined = []
     for run in range(repeats):
-        print('Run ' + str(run + 1))
+        print('Run: ' + str(run + 1) + ', Dataset: ' + dataset + ', Model: ' + model_name)
         
         acc_train, acc_test_1, acc_test_2, acc_test_combined, model = run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, batch_size, epochs, model_layers)
         
@@ -83,7 +83,7 @@ def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y
                             min_lr=0.0001),
         ModelCheckpoint('best_model_weights.hdf5', monitor='binary_accuracy',
                             save_best_only=True),
-        keras.callbacks.EarlyStopping(monitor='binary_accuracy', patience=10)
+        keras.callbacks.EarlyStopping(monitor='val_binary_accuracy', patience=10)
     ]
 
     model.fit(
