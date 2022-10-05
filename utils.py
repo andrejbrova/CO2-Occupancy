@@ -276,7 +276,7 @@ def summarize_results(
     pd.DataFrame(result, index=[model_name]).to_csv(str(ROOT_DIR) + '/models/' + folder + model_name + suffix + '.csv')
 
 def concat_tables():
-    path = os.getcwd() + '/results/'
+    path = str(ROOT_DIR) + '/models/results/'
     csv_files = glob.glob(os.path.join(path, "*.csv"))
 
     tables = []
