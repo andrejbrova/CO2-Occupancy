@@ -19,6 +19,7 @@ from datamodels import datamodels as dm
 LOOKBACK_HORIZON = 48
 PREDICTION_HORIZON = 1
 
+
 def load_dataset(
     dataset='uci', # 'uci', 'Australia', 'Denmark', 'Italy'
     feature_set='full', # 'full', 'Light+CO2', 'CO2'
@@ -37,13 +38,17 @@ def load_dataset(
     if dataset == 'uci':
         training, test1, test2 = load_dataset_uci()
 
-        if historical_co2:
+        if historical_co2 != False:
+            if isinstance(historical_co2, int):
+                shift = historical_co2
+            else:
+                shift = 1
             features.append('CO2+1h')
-            training['CO2+1h'] = training.loc[:,'CO2'].shift(1)
+            training['CO2+1h'] = training.loc[:,'CO2'].shift(shift)
             training = training.dropna()
-            test1['CO2+1h'] = test1.loc[:,'CO2'].shift(1)
+            test1['CO2+1h'] = test1.loc[:,'CO2'].shift(shift)
             test1 = test1.dropna()
-            test2['CO2+1h'] = test2.loc[:,'CO2'].shift(1)
+            test2['CO2+1h'] = test2.loc[:,'CO2'].shift(shift)
             test2 = test2.dropna()
 
         X_train = training.loc[:,features]
@@ -96,8 +101,12 @@ def load_dataset(
         features.append('Room_ID')
 
         if historical_co2:
+            if isinstance(historical_co2, int):
+                shift = historical_co2
+            else:
+                shift = 1
             features.append('CO2+1h')
-            data['CO2+1h'] = data.loc[:,'CO2'].shift(1)
+            data['CO2+1h'] = data.loc[:,'CO2'].shift(shift)
 
         X = data.loc[:,data.columns.intersection(features)]
         y = pd.DataFrame(data.loc[:,'Occupancy'])
@@ -240,24 +249,23 @@ def summarize_results(
     repeats='?',
     embedding='?',
     feature_set='?',
-    historical_co2='?'
+    historical_co2='?',
+    suffix = ''
     ):
-    print(scores_train)
-    print(scores_test_1)
+
     result = {
         'batch size': batch_size,
         'epochs': epochs,
         'repeats': repeats,
         'embedding': embedding,
         'feature set': feature_set,
-        'historical co2': historical_co2,
+        'historical co2 (min)': historical_co2,
         'accuracy_train_mean': np.mean(scores_train),
         'accuracy_train_std': np.std(scores_train),
         'accuracy_test_1_mean': np.mean(scores_test_1),
         'accuracy_test_1_std': np.std(scores_test_1),
     }
 
-    suffix = ''
     if feature_set != '?' and feature_set != 'full':
         suffix += '_' + feature_set
     if embedding != '?' and embedding != False:
