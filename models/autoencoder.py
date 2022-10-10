@@ -8,7 +8,7 @@ sys.path.append(str(ROOT_DIR.parent) + '/Repos/datascience/') # Path to datamode
 import numpy as np
 import pandas as pd
 from datamodels import datamodels as dm
-from keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
+from keras.callbacks import LearningRateScheduler, ReduceLROnPlateau, EarlyStopping
 from keras.layers import Dense, Input, Flatten
 from keras.metrics import BinaryAccuracy
 from keras.models import Model, Sequential
@@ -17,7 +17,8 @@ from matplotlib import pyplot as plt
 from sklearn.manifold import TSNE
 from sklearn.svm import SVC
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.utils import set_random_seed
+from tensorflow.compat.v1 import set_random_seed
+#from tensorflow.keras.utils import set_random_seed
 
 from utils import load_dataset, summarize_results
 from models.embedding.embedding import layers_embedding
@@ -34,12 +35,12 @@ from models.embedding.embedding import layers_embedding
 
 def main():
     dataset = 'uci'
-    batch_size = 32 # 64
+    batch_size = 16 # 64
     epochs = 50 # 200
     repeats = 10
     historical_co2 = True
     embedding = False
-    feature_set = 'CO2'
+    feature_set = 'full'
     name = 'autoencoder'
 
     X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(dataset=dataset, feature_set=feature_set, normalize=True, embedding=embedding, historical_co2=historical_co2)
@@ -51,10 +52,11 @@ def main():
     autoencoders_train = []
     classifiers_train = []
     encoded_representations = []
+    predictions = []
     for run in range(repeats):
         print('Run: ' + str(run + 1) + ', Dataset: ' + dataset + ', Model: ' + name)
         set_random_seed(run)
-        acc_train, acc_test_1, acc_test_2, acc_test_combined, autoencoder_train, classifier_train, encoded_representation, y_test_combined = run_model(
+        acc_train, acc_test_1, acc_test_2, acc_test_combined, autoencoder_train, classifier_train, encoded_representation, y_test_combined, y_pred_test_combined = run_model(
             X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, dataset, batch_size, epochs, embedding, historical_co2, feature_set, name)
         scores_train.append(acc_train)
         scores_test_1.append(acc_test_1)
@@ -63,11 +65,12 @@ def main():
         autoencoders_train.append(autoencoder_train)
         classifiers_train.append(classifier_train)
         encoded_representations.append(encoded_representation)
+        predictions.append(y_pred_test_combined)
 
     max_value = max(scores_test_combined)
     max_value_index = scores_test_combined.index(max_value)
 
-    plot_autoencoder(encoded_representations[max_value_index], y_test_combined, scores_test_combined, name)
+    plot_autoencoder(encoded_representations[max_value_index], predictions[max_value_index], y_test_combined, scores_test_combined, name)
     loss_plot(autoencoders_train[max_value_index], name)
     acc_plot(classifiers_train[max_value_index], name)
 
@@ -85,8 +88,8 @@ def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y
     else:
         X_train_target = X_train
 
-    callbacks_list = [
-        keras.callbacks.EarlyStopping(monitor='val_binary_accuracy', patience=10)
+    callbacks_list_training = [
+        EarlyStopping(monitor='val_mse', patience=10)
     ]
 
     autoencoder_train = autoencoder_for_training.fit(
@@ -95,7 +98,7 @@ def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y
         epochs = epochs,
         validation_split=0.2,
         shuffle = True,
-        callbacks = callbacks_list,
+        callbacks = callbacks_list_training,
     )
 
     # Train classifier:
@@ -107,12 +110,17 @@ def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y
     print(autoencoder_for_training.get_weights()[0][1])
     print(autoencoder_for_classifier.get_weights()[0][1])
 
+    callbacks_list_classification = [
+        EarlyStopping(monitor='val_binary_accuracy', patience=10)
+    ]
+
     classifier_train = autoencoder_for_classifier.fit(
         X_train, y_train,
         batch_size=batch_size,
         epochs=epochs,
         validation_split=0.5,
         shuffle=True,
+        callbacks = callbacks_list_classification
     )
 
     pred_train = autoencoder_for_classifier.predict(X_train)
@@ -134,7 +142,7 @@ def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y
 
     encoded_representation = autoencoder_for_representation.predict(X_test_combined)
 
-    return acc_train, acc_test_1, acc_test_2, acc_test_combined, autoencoder_train, classifier_train, encoded_representation, y_test_combined
+    return acc_train, acc_test_1, acc_test_2, acc_test_combined, autoencoder_train, classifier_train, encoded_representation, y_test_combined, pred_test_combined.round()
 
 def build_autoencoder(embedding, X_train, target_shape):
     hidden_size = 128
@@ -218,26 +226,47 @@ def acc_plot(classifier_train, model_name):
     plt.savefig(str(ROOT_DIR) + '/models/results/' + model_name + '_accuracy_plot.png')
     #plt.show()
 
-def plot_autoencoder(encoded_representation, y, scores_test_combined, model_name):
+def plot_autoencoder(encoded_representation, y_pred, y, scores_test_combined, model_name):
     #tsne = TSNE(n_components=2, random_state=42)
 
     #X_transformed = tsne.fit_transform(best)
 
+    y = y.to_numpy()[:,0]
+    y_pred = y_pred[:,0]
+
     plt.figure(figsize=(12, 8))
 
+    condition = np.all([y==0, y_pred==0], axis=0)
     plt.scatter(
-        encoded_representation[np.where(y==0),0],
-        encoded_representation[np.where(y==0),1],
+        encoded_representation[condition,0],
+        encoded_representation[condition,1],
         marker='o',
         color='red',
-        label='Non-Occupancy'
+        label='Non-Occupancy (Detected)'
     )
+    condition = np.all([y==0, y_pred==1], axis=0)
     plt.scatter(
-        encoded_representation[np.where(y==1),0],
-        encoded_representation[np.where(y==1),1],
+        encoded_representation[condition,0],
+        encoded_representation[condition,1],
+        marker='o',
+        color='salmon',
+        label='Non-Occupancy (Not detected)'
+    )
+    condition = np.all([y==1, y_pred==1], axis=0)
+    plt.scatter(
+        encoded_representation[condition,0],
+        encoded_representation[condition,1],
         marker='o',
         color='blue',
-        label='Occupancy'
+        label='Occupancy (Detected)'
+    )
+    condition = np.all([y==1, y_pred==0], axis=0)
+    plt.scatter(
+        encoded_representation[condition,0],
+        encoded_representation[condition,1],
+        marker='o',
+        color='lightblue',
+        label='Occupancy (Not detected)'
     )
     
     plt.legend(loc='best')

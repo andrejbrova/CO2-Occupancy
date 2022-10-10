@@ -259,7 +259,7 @@ def summarize_results(
         'repeats': repeats,
         'embedding': embedding,
         'feature set': feature_set,
-        'historical co2 (min)': historical_co2,
+        'historical co2': historical_co2,
         'accuracy_train_mean': np.mean(scores_train),
         'accuracy_train_std': np.std(scores_train),
         'accuracy_test_1_mean': np.mean(scores_test_1),
