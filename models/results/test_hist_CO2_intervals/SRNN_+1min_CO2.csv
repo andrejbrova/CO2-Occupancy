@@ -1,0 +1,2 @@
+,batch size,epochs,repeats,embedding,feature set,historical co2,accuracy_train_mean,accuracy_train_std,accuracy_test_1_mean,accuracy_test_1_std,accuracy_test_2_mean,accuracy_test_2_std,accuracy_test_combined_mean,accuracy_test_combined_std
+SRNN,32,50,10,False,CO2,1,0.9223897,0.01832647,0.84726584,0.059610035,0.5566069,0.10866853,0.61958593,0.095340095

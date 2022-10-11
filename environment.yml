@@ -1,0 +1,10 @@
+name: occ
+channels:
+  - defaults
+dependencies:
+  - tensorflow
+  - pandas
+  - scikit-learn
+  - matplotlib
+  - keras
+prefix: /home/daniel.kulmer/anaconda3/envs/occ

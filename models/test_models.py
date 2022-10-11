@@ -25,7 +25,7 @@ def main():
     historical_co2 = True
     embedding = False # Wont work here
     feature_set = 'CO2'
-    model_name = 'LSTM'
+    model_name = 'SRNN'
     shaped = True
 
     models = {
