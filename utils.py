@@ -1,9 +1,12 @@
 import sys
+from datetime import datetime
 from pathlib import Path
+
+from pandas import DatetimeIndex
 
 ROOT_DIR = Path(__file__).parents[0]
 sys.path.append(str(ROOT_DIR))
-sys.path.append(str(ROOT_DIR.parent) + '/Repos/datascience/') # Path to datamodel location
+sys.path.append(str(ROOT_DIR.parent) + '/Repos/datascience/')  # Path to datamodel location
 
 import os
 import glob
@@ -12,8 +15,7 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 
-from datamodels import datamodels as dm
-
+import datamodels as dm
 
 # Shape dimensions (used when 'shaped' is True)
 LOOKBACK_HORIZON = 48
@@ -21,20 +23,19 @@ PREDICTION_HORIZON = 1
 
 
 def load_dataset(
-    dataset='uci', # 'uci', 'Australia', 'Denmark', 'Italy'
-    feature_set='full', # 'full', 'Light+CO2', 'CO2'
-    historical_co2=False,
-    normalize=False,
-    embedding=False,
-    shaped=False
-    ):
-
+        dataset='Italy',  # 'uci', 'Australia', 'Denmark', 'Italy'
+        feature_set='full',  # 'full', 'Light+CO2', 'CO2'
+        historical_co2=False,
+        normalize=False,
+        embedding=False,
+        shaped=False
+):
     if embedding and shaped:
         print('Cannot use embedding on shaped dataset')
         exit()
 
     features = get_feature_list(feature_set)
-    
+
     if dataset == 'uci':
         training, test1, test2 = load_dataset_uci()
 
@@ -44,21 +45,21 @@ def load_dataset(
             else:
                 shift = 1
             features.append('CO2+1h')
-            training['CO2+1h'] = training.loc[:,'CO2'].shift(shift)
+            training['CO2+1h'] = training.loc[:, 'CO2'].shift(shift)
             training = training.dropna()
-            test1['CO2+1h'] = test1.loc[:,'CO2'].shift(shift)
+            test1['CO2+1h'] = test1.loc[:, 'CO2'].shift(shift)
             test1 = test1.dropna()
-            test2['CO2+1h'] = test2.loc[:,'CO2'].shift(shift)
+            test2['CO2+1h'] = test2.loc[:, 'CO2'].shift(shift)
             test2 = test2.dropna()
 
-        X_train = training.loc[:,features]
-        y_train = pd.DataFrame(training.loc[:,'Occupancy'])
+        X_train = training.loc[:, features]
+        y_train = pd.DataFrame(training.loc[:, 'Occupancy'])
 
-        X_test_1 = test1.loc[:,features]
-        y_test_1 = pd.DataFrame(test1.loc[:,'Occupancy'])
+        X_test_1 = test1.loc[:, features]
+        y_test_1 = pd.DataFrame(test1.loc[:, 'Occupancy'])
 
-        X_test_2 = test2.loc[:,features]
-        y_test_2 = pd.DataFrame(test2.loc[:,'Occupancy'])
+        X_test_2 = test2.loc[:, features]
+        y_test_2 = pd.DataFrame(test2.loc[:, 'Occupancy'])
 
         X_test_combined = pd.concat([X_test_1, X_test_2])
         y_test_combined = pd.concat([y_test_1, y_test_2])
@@ -77,7 +78,8 @@ def load_dataset(
         print(f'input: {X_train.shape[-1]} features ({X_train.columns.tolist()}).')
 
         if embedding:
-            X_train, X_test_1, X_test_2, X_test_combined, _ = get_embeddings(X_train, X_test_1, X_test_2, X_test_combined)
+            X_train, X_test_1, X_test_2, X_test_combined, _ = get_embeddings(X_train, X_test_1, X_test_2,
+                                                                             X_test_combined)
 
         if shaped:
             X_train, y_train = dm.processing.shape.get_windows(
@@ -92,7 +94,7 @@ def load_dataset(
             X_test_combined, y_test_combined = dm.processing.shape.get_windows(
                 LOOKBACK_HORIZON, X_test_combined.to_numpy(), PREDICTION_HORIZON, y_test_combined.to_numpy(),
             )
-        
+
         return X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined
 
     else:
@@ -106,10 +108,27 @@ def load_dataset(
             else:
                 shift = 1
             features.append('CO2+1h')
-            data['CO2+1h'] = data.loc[:,'CO2'].shift(shift)
+            data['CO2+1h'] = data.loc[:, 'CO2'].shift(shift)
 
-        X = data.loc[:,data.columns.intersection(features)]
-        y = pd.DataFrame(data.loc[:,'Occupancy'])
+        # trainset = spring+autumn+winter(9th of March - 20th of June, 22th of September - 21st of February)
+        # testset = summer(21st of June - 21st of September)
+
+        # print(DatetimeIndex(data["Date_Time"]).date < datetime(2018, 6, 21))
+        # trainset = data[DatetimeIndex(data["Date_Time"]).date < datetime(2018, 6, 21) and DatetimeIndex(data["Date_Time"]).date > datetime(2018,9,21)]
+        # testset = data[DatetimeIndex(data["Date_Time"]).day >= datetime(2018, 6, 21) and DatetimeIndex(data["Date_Time"]).date <=datetime(2018, 9, 21)]
+        # print(trainset)
+        # print(testset)
+        # combined = pd.concat(trainset, testset)
+
+        # data['Date_Time'] = pd.to_datetime(data['Date_Time'])
+        # data = data.set_index(data['Date_Time'])
+        # data = data.set_index(data['Date_Time'])
+        # data = data.sort_index()
+        #
+        # train = data['']
+
+        X = data.loc[:, data.columns.intersection(features)]
+        y = pd.DataFrame(data.loc[:, 'Occupancy'])
 
         if normalize:
             X_scaleable = X.select_dtypes(exclude='category')
@@ -122,15 +141,15 @@ def load_dataset(
                 LOOKBACK_HORIZON, X.to_numpy(), PREDICTION_HORIZON, y.to_numpy()
             )
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, shuffle=False)
-
-        X_test_2 = X_test.iloc[0:100] # Not the best solution, but test2 and test_combined are substituted by dummies here
-        X_test_combined = X_test.iloc[0:100]
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, shuffle=True)
+        X_test_2 = X_test[0:100]  # Not the best solution, but test2 and test_combined are substituted by dummies here
+        X_test_combined = X_test[0:100]
 
         if embedding:
             X_train, X_test, X_test_2, X_test_combined, _ = get_embeddings(X_train, X_test, X_test_2, X_test_combined)
 
-        return X_train, X_test, X_test_2, X_test_combined, y_train, y_test, y_test.iloc[0:100], y_test.iloc[0:100]
+        return X_train, X_test, X_test_2, X_test_combined, y_train, y_test, y_test[0:100], y_test[0:100]
+
 
 def load_dataset_uci():
     training = pd.read_csv(str(ROOT_DIR) + '/occupancy_data/datatraining.txt', parse_dates=['date'])
@@ -142,6 +161,7 @@ def load_dataset_uci():
     test2 = test2.set_index('date')
 
     return training, test1, test2
+
 
 def load_dataset_brick(country):
     filename_1 = {
@@ -162,18 +182,20 @@ def load_dataset_brick(country):
         'Occupant_Number_Measurement': 'Occupancy'
     }
 
-    dataset_1 = pd.read_csv(str(ROOT_DIR) + '/occupancy_data/' + filename_1[country], index_col='Date_Time', na_values=-999, parse_dates=True)
-    dataset_2 = pd.read_csv(str(ROOT_DIR) + '/occupancy_data/' + filename_2[country], index_col='Date_Time', na_values=-999, parse_dates=True)
+    dataset_1 = pd.read_csv(str(ROOT_DIR) + '/occupancy_data/' + filename_1[country], index_col='Date_Time',
+                            na_values=-999, parse_dates=True)
+    dataset_2 = pd.read_csv(str(ROOT_DIR) + '/occupancy_data/' + filename_2[country], index_col='Date_Time',
+                            na_values=-999, parse_dates=True)
 
     dataset = pd.concat([dataset_1, dataset_2], axis=1)
     dataset = dataset.sort_index()
 
-    dataset = dataset.loc[:,~dataset.columns.duplicated()] # Drop the second Room_ID column
+    dataset = dataset.loc[:, ~dataset.columns.duplicated()]  # Drop the second Room_ID column
     dataset['Room_ID'] = dataset['Room_ID'].astype('category')
 
     dataset = dataset.rename(columns=translate_columns)
 
-    dataset = dataset[['Temperature', 'Humidity', 'CO2', 'Room_ID', 'Occupancy']]
+    dataset = dataset[['Temperature', 'CO2', 'Room_ID', 'Occupancy']]
     if country == 'Italy':
         dataset = dataset.loc[:, dataset.columns != 'Humidity']
     dataset = dataset.dropna()
@@ -182,6 +204,7 @@ def load_dataset_brick(country):
         dataset['Occupancy'][dataset['Occupancy'] > 0] = 1
 
     return dataset
+
 
 def get_embeddings(X, X_test_1, X_test_2, X_test_combined):
     cat_vars = [
@@ -237,22 +260,22 @@ def get_embeddings(X, X_test_1, X_test_2, X_test_combined):
 
     return X_array, X_test_1_array, X_test_2_array, X_test_combined_array, encoders
 
-def summarize_results(
-    scores_train,
-    scores_test_1,
-    scores_test_2,
-    scores_test_combined,
-    model_name='?',
-    dataset='?',
-    batch_size='?',
-    epochs='?',
-    repeats='?',
-    embedding='?',
-    feature_set='?',
-    historical_co2='?',
-    suffix = ''
-    ):
 
+def summarize_results(
+        scores_train,
+        scores_test_1,
+        scores_test_2,
+        scores_test_combined,
+        model_name='?',
+        dataset='?',
+        batch_size='?',
+        epochs='?',
+        repeats='?',
+        embedding='?',
+        feature_set='?',
+        historical_co2='?',
+        suffix=''
+):
     result = {
         'batch size': batch_size,
         'epochs': epochs,
@@ -271,7 +294,7 @@ def summarize_results(
     if embedding != '?' and embedding != False:
         suffix += '_embedding'
     if dataset == '?' or dataset == 'uci':
-        result.update({ # Add evaluation for second and combined test set
+        result.update({  # Add evaluation for second and combined test set
             'accuracy_test_2_mean': np.mean(scores_test_2),
             'accuracy_test_2_std': np.std(scores_test_2),
             'accuracy_test_combined_mean': np.mean(scores_test_combined),
@@ -283,6 +306,7 @@ def summarize_results(
 
     pd.DataFrame(result, index=[model_name]).to_csv(str(ROOT_DIR) + '/models/' + folder + model_name + suffix + '.csv')
 
+
 def concat_tables():
     path = str(ROOT_DIR) + '/models/results/'
     csv_files = glob.glob(os.path.join(path, "*.csv"))
@@ -292,6 +316,7 @@ def concat_tables():
         if result_table != (path + 'results.csv'):
             tables.append(pd.read_csv(result_table))
     pd.concat(tables, axis=0).to_csv(path + 'results.csv')
+
 
 def get_feature_list(set='full'):
     sets = {
@@ -311,6 +336,7 @@ def get_feature_list(set='full'):
         ]
     }
     return sets[set]
+
 
 if __name__ == '__main__':
     concat_tables()
