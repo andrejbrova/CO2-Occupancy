@@ -15,7 +15,7 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 
-import datamodels as dm
+from datamodels import datamodels as dm
 
 # Shape dimensions (used when 'shaped' is True)
 LOOKBACK_HORIZON = 48

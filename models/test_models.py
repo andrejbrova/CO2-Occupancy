@@ -35,7 +35,7 @@ def main():
         'GRU': (dm.GRU, layers_GRU)
     }
 
-    for historical_co2 in [0, 1, 5, 10, 15, 30]:
+    for historical_co2 in [5,10,15,30]:#[0, 1, 5, 10, 15, 30]:
         X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(
             dataset=dataset,
             feature_set=feature_set,

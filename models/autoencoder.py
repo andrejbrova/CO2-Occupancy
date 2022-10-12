@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from datamodels import datamodels as dm
 from keras.callbacks import LearningRateScheduler, ReduceLROnPlateau, EarlyStopping
-from keras.layers import Dense, Input, Flatten
+from keras.layers import Dense, Input, Flatten, Reshape
 from keras.metrics import BinaryAccuracy
 from keras.models import Model, Sequential
 from keras.regularizers import l1, l2
@@ -39,12 +39,12 @@ def main():
     epochs = 50 # 200
     repeats = 10
     historical_co2 = True
-    embedding = True
+    embedding = False
     feature_set = 'CO2'
     name = 'autoencoder'
     shaped = True
 
-    for historical_co2 in [0, 1, 5, 10, 15, 30]:
+    for historical_co2 in [1, 15, 30]:#[0, 1, 5, 10, 15, 30]:
         X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(dataset=dataset, feature_set=feature_set, normalize=True, embedding=embedding, historical_co2=historical_co2, shaped=shaped)
 
         scores_train = []
@@ -76,7 +76,7 @@ def main():
         loss_plot(autoencoders_train[max_value_index], name)
         acc_plot(classifiers_train[max_value_index], name)
 
-        summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name, dataset, batch_size, epochs, repeats, embedding, feature_set, historical_co2)
+        summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name, dataset, batch_size, epochs, repeats, embedding, feature_set, historical_co2, suffix='_+'+str(historical_co2)+'min')
 
 def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, dataset, batch_size, epochs, embedding, historical_co2, feature_set, name):
     y_shape = y_train.shape[1:]
@@ -172,8 +172,10 @@ def build_autoencoder(embedding, X_train, target_shape):
         decoded = Dense(hidden_size / 8, activation='relu')(encoded)
         decoded = Dense(hidden_size / 4, activation='relu')(decoded)
         decoded = Dense(hidden_size, activation='relu')(decoded)
-        decoded = Flatten()(decoded)
-        decoded = Dense(input_shape[-1], activation='relu')(decoded)
+        decoded = Dense(np.prod(list(input_shape)), activation='relu')(decoded)
+        decoded = Reshape(input_shape)(decoded)
+        #decoded = Flatten()(decoded)
+        #decoded = Dense(input_shape[-1], activation='relu')(decoded)
         return decoded
 
     def representation(encoded):
@@ -233,7 +235,7 @@ def plot_autoencoder(encoded_representation, y_pred, y, scores_test_combined, mo
 
     #X_transformed = tsne.fit_transform(best)
 
-    y = y.to_numpy()[:,0]
+    y = y[:,0]
     y_pred = y_pred[:,0]
 
     plt.figure(figsize=(12, 8))

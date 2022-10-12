@@ -19,7 +19,7 @@ from utils import load_dataset, get_embeddings, summarize_results
 
 
 def main():
-    dataset = 'Italy'
+    dataset = 'uci'
     feature_set='full'
     historical_co2=False
     batch_size = 32
@@ -123,8 +123,11 @@ def plot_embedding(models, dataset, encoders, category, scores_test_1, model_nam
     for it, model in enumerate(models_to_plot):
         embedding_layer = model.get_layer(category)
         weights = embedding_layer.get_weights()[0]
-        pca = PCA(n_components=2)
-        weights = pca.fit_transform(weights)
+        if weights.shape[-1] <= 1:
+            return
+        elif weights.shape[-1] > 2:
+            pca = PCA(n_components=2)
+            weights = pca.fit_transform(weights)
         weights_t = weights.T
 
         plt.scatter(weights_t[0], weights_t[1], c=colors[it], label=labels[it])
