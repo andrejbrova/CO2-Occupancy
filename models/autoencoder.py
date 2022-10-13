@@ -43,6 +43,7 @@ def main():
     feature_set = 'CO2'
     name = 'autoencoder'
     shaped = True
+    plot_representation = True
 
     for historical_co2 in [1, 15, 30]:#[0, 1, 5, 10, 15, 30]:
         X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(dataset=dataset, feature_set=feature_set, normalize=True, embedding=embedding, historical_co2=historical_co2, shaped=shaped)
@@ -54,11 +55,12 @@ def main():
         autoencoders_train = []
         classifiers_train = []
         encoded_representations = []
-        predictions = []
+        predictions_1 = []
+        predictions_2 = []
         for run in range(repeats):
             print('Run: ' + str(run + 1) + ', Dataset: ' + dataset + ', Model: ' + name)
             set_random_seed(run)
-            acc_train, acc_test_1, acc_test_2, acc_test_combined, autoencoder_train, classifier_train, encoded_representation, y_test_combined, y_pred_test_combined = run_model(
+            acc_train, acc_test_1, acc_test_2, acc_test_combined, autoencoder_train, classifier_train, encoded_representation, y_pred_test_1, y_pred_test_2 = run_model(
                 X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, dataset, batch_size, epochs, embedding, historical_co2, feature_set, name)
             scores_train.append(acc_train)
             scores_test_1.append(acc_test_1)
@@ -67,14 +69,16 @@ def main():
             autoencoders_train.append(autoencoder_train)
             classifiers_train.append(classifier_train)
             encoded_representations.append(encoded_representation)
-            predictions.append(y_pred_test_combined)
+            predictions_1.append(y_pred_test_1)
+            predictions_2.append(y_pred_test_2)
 
-        max_value = max(scores_test_combined)
-        max_value_index = scores_test_combined.index(max_value)
+        if plot_representation:
+            max_value = max(scores_test_combined)
+            max_value_index = scores_test_combined.index(max_value)
 
-        plot_autoencoder(encoded_representations[max_value_index], predictions[max_value_index], y_test_combined, scores_test_combined, name)
-        loss_plot(autoencoders_train[max_value_index], name)
-        acc_plot(classifiers_train[max_value_index], name)
+            plot_autoencoder(encoded_representations[max_value_index], predictions_1[max_value_index], predictions_2[max_value_index], y_test_1, y_test_2, scores_test_combined, name)
+            loss_plot(autoencoders_train[max_value_index], name)
+            acc_plot(classifiers_train[max_value_index], name)
 
         summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name, dataset, batch_size, epochs, repeats, embedding, feature_set, historical_co2, suffix='_+'+str(historical_co2)+'min')
 
@@ -144,7 +148,7 @@ def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y
 
     encoded_representation = autoencoder_for_representation.predict(X_test_combined)
 
-    return acc_train, acc_test_1, acc_test_2, acc_test_combined, autoencoder_train, classifier_train, encoded_representation, y_test_combined, pred_test_combined.round()
+    return acc_train, acc_test_1, acc_test_2, acc_test_combined, autoencoder_train, classifier_train, encoded_representation, pred_test_1.round(), pred_test_2.round()
 
 def build_autoencoder(embedding, X_train, target_shape):
     hidden_size = 128
@@ -230,56 +234,61 @@ def acc_plot(classifier_train, model_name):
     plt.savefig(str(ROOT_DIR) + '/models/results/' + model_name + '_accuracy_plot.png')
     #plt.show()
 
-def plot_autoencoder(encoded_representation, y_pred, y, scores_test_combined, model_name):
+def plot_autoencoder(encoded_representation, y_pred_1, y_pred_2, y_test_1, y_test_2, scores_test_combined, model_name):
     #tsne = TSNE(n_components=2, random_state=42)
 
     #X_transformed = tsne.fit_transform(best)
 
-    y = y[:,0]
-    y_pred = y_pred[:,0]
+    pred = [y_pred_1, y_pred_2]
+    test = [y_test_1, y_test_2]
+    names = ['1', '2']
 
-    plt.figure(figsize=(12, 8))
+    for y, y_pred, name in zip(test, pred, names):
+        y = y[:,0]
+        y_pred = y_pred[:,0]
 
-    condition = np.all([y==0, y_pred==0], axis=0)
-    plt.scatter(
-        encoded_representation[condition,0],
-        encoded_representation[condition,1],
-        marker='o',
-        color='red',
-        label='Non-Occupancy (Detected)'
-    )
-    condition = np.all([y==0, y_pred==1], axis=0)
-    plt.scatter(
-        encoded_representation[condition,0],
-        encoded_representation[condition,1],
-        marker='o',
-        color='salmon',
-        label='Non-Occupancy (Not detected)'
-    )
-    condition = np.all([y==1, y_pred==1], axis=0)
-    plt.scatter(
-        encoded_representation[condition,0],
-        encoded_representation[condition,1],
-        marker='o',
-        color='blue',
-        label='Occupancy (Detected)'
-    )
-    condition = np.all([y==1, y_pred==0], axis=0)
-    plt.scatter(
-        encoded_representation[condition,0],
-        encoded_representation[condition,1],
-        marker='o',
-        color='lightblue',
-        label='Occupancy (Not detected)'
-    )
-    
-    plt.legend(loc='best')
-    plt.title('Representation of encoded data')
-    plt.xlabel('Output1')
-    plt.ylabel('Output2')
+        plt.figure(figsize=(12, 8))
 
-    plt.savefig(str(ROOT_DIR) + '/models/results/' + model_name + '_representation.png')
-    #plt.show()
+        condition = np.all([y==0, y_pred==0], axis=0)
+        plt.scatter(
+            encoded_representation[condition,0],
+            encoded_representation[condition,1],
+            marker='o',
+            color='red',
+            label='Non-Occupancy (Detected)'
+        )
+        condition = np.all([y==0, y_pred==1], axis=0)
+        plt.scatter(
+            encoded_representation[condition,0],
+            encoded_representation[condition,1],
+            marker='o',
+            color='salmon',
+            label='Non-Occupancy (Not detected)'
+        )
+        condition = np.all([y==1, y_pred==1], axis=0)
+        plt.scatter(
+            encoded_representation[condition,0],
+            encoded_representation[condition,1],
+            marker='o',
+            color='blue',
+            label='Occupancy (Detected)'
+        )
+        condition = np.all([y==1, y_pred==0], axis=0)
+        plt.scatter(
+            encoded_representation[condition,0],
+            encoded_representation[condition,1],
+            marker='o',
+            color='lightblue',
+            label='Occupancy (Not detected)'
+        )
+        
+        plt.legend(loc='best')
+        plt.title('Representation of encoded data (test ' + name + ')')
+        plt.xlabel('Output1')
+        plt.ylabel('Output2')
+
+        plt.savefig(str(ROOT_DIR) + '/models/results/' + model_name + '_representation_test_' + name + '.png')
+        #plt.show()
 
 if __name__ == '__main__':
     main()

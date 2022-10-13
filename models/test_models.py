@@ -16,6 +16,9 @@ from keras.layers.embeddings import Embedding
 from utils import load_dataset, summarize_results
 from datamodels import datamodels as dm
 
+# References
+# https://towardsdatascience.com/a-comprehensive-guide-to-convolutional-neural-networks-the-eli5-way-3bd2b1164a53
+
 
 def main():
     dataset = 'uci'
@@ -25,8 +28,8 @@ def main():
     historical_co2 = True
     embedding = False # Wont work here
     feature_set = 'CO2'
-    model_name = 'SRNN'
-    shaped = True
+    model_name = 'CNN'
+    shaped = False
 
     models = {
         'CNN': (dm.ConvolutionNetwork, layers_CNN),
@@ -35,7 +38,7 @@ def main():
         'GRU': (dm.GRU, layers_GRU)
     }
 
-    for historical_co2 in [5,10,15,30]:#[0, 1, 5, 10, 15, 30]:
+    for historical_co2 in [1, 5, 10, 15, 30]:
         X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(
             dataset=dataset,
             feature_set=feature_set,
@@ -59,7 +62,7 @@ def main():
             scores_test_2.append(acc_test_2)
             scores_test_combined.append(acc_test_combined)
         
-        summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name, dataset, batch_size, epochs, repeats, embedding, feature_set, historical_co2, suffix='_+'+str(historical_co2)+'min')
+        summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name, dataset, batch_size, epochs, repeats, embedding, feature_set, historical_co2)
 
 def build_model(n_timesteps, n_features, target_shape, batch_size, epochs, model_type, name):
     

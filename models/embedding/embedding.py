@@ -17,23 +17,29 @@ from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 
 from utils import load_dataset, get_embeddings, summarize_results
 
+# References
+# https://medium.com/@jdwittenauer/deep-learning-with-keras-structured-time-series-37a66c6aeb28
+
 
 def main():
     dataset = 'uci'
-    feature_set='full'
-    historical_co2=False
+    feature_set='CO2'
+    historical_co2=True
     batch_size = 32
-    epochs = 2
-    repeats = 2
-    model_name = 'LSTM'
+    epochs = 50
+    repeats = 10
+    model_name = 'SRNN'
+    # shaping is not working with embedding so far
 
     models = {
         'CNN': layers_CNN,
         'GRU': layers_GRU,
-        'LSTM': layers_LSTM
+        'LSTM': layers_LSTM,
+        'SRNN': layers_SRNN,
     }
 
-    run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repeats, models[model_name], model_name)
+    for historical_co2 in [1, 5, 10, 15, 30]:
+        run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repeats, models[model_name], model_name)
 
 def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repeats, model_layers, model_name):
     X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(
@@ -62,7 +68,7 @@ def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repe
         scores_test_2.append(acc_test_2)
         scores_test_combined.append(acc_test_combined)
 
-    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name, dataset, batch_size, epochs, repeats, True, feature_set, historical_co2)
+    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name, dataset, batch_size, epochs, repeats, True, feature_set, historical_co2, suffix='_+'+str(historical_co2)+'min')
     
     for cat_var in encoders.keys():
         plot_embedding(models, dataset, encoders, cat_var, scores_test_1, model_name)        
@@ -188,7 +194,7 @@ def layers_CNN(x):
     x = keras.layers.Conv1D(filters=32, kernel_size=3, activation="relu")(x)
     x = keras.layers.Conv1D(filters=32, kernel_size=3, activation="relu")(x)
     x = keras.layers.Dropout(0.2)(x)
-    #x = keras.layers.Conv1D(filters=32, kernel_size=3, activation="relu")(x)
+    x = keras.layers.Conv1D(filters=32, kernel_size=3, activation="relu")(x)
     x = keras.layers.Dense(units=32, activation="relu")(x)
     x = keras.layers.Flatten()(x)
     x = keras.layers.Dropout(0.2)(x)
@@ -214,6 +220,22 @@ def layers_GRU(x):
     x = keras.layers.GRU(units=64)(x)
     x = keras.layers.Dropout(0.2)(x)
     x = keras.layers.Dense(units=hidden_layer_size, activation='relu')(x)
+
+    return x
+
+def layers_SRNN(x): # TODO: Sequence required?
+    hidden_layer_size = 32
+
+    #x = keras.layers.Flatten()(x)
+    x = keras.layers.SimpleRNN(return_sequences=True, units=64)(x),
+    x = keras.layers.SimpleRNN(return_sequences=True, units=64)(x),
+    x = keras.layers.Dropout(0.2)(x),
+    x = keras.layers.SimpleRNN(return_sequences=True, units=64)(x),
+    x = keras.layers.SimpleRNN(return_sequences=True, units=64)(x),
+    x = keras.layers.SimpleRNN(units=64)(x),
+    x = keras.layers.Dropout(0.2)(x),
+    #x = keras.layers.SimpleRNN(units=64)(x),
+    x = keras.layers.Dense(units=hidden_layer_size, activation='relu')(x),
 
     return x
 
