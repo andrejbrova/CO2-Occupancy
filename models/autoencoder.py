@@ -17,7 +17,6 @@ from matplotlib import pyplot as plt
 from sklearn.manifold import TSNE
 from sklearn.svm import SVC
 from tensorflow.keras.optimizers import Adam
-#from tensorflow.compat.v1 import set_random_seed
 from tensorflow.keras.utils import set_random_seed
 
 from utils import load_dataset, summarize_results
@@ -35,52 +34,54 @@ from models.embedding.embedding import layers_embedding
 
 def main():
     dataset = 'uci'
-    batch_size = 32 # 64
-    epochs = 50 # 200
+    batch_size = 16 # 64
+    epochs = 30 # 200
     repeats = 10
-    historical_co2 = True
+    historical_co2 = False
     embedding = False
-    feature_set = 'CO2'
+    feature_set = 'full'
     name = 'autoencoder'
-    shaped = True
+    shaped = False
     plot_representation = True
 
-    for historical_co2 in [1, 15, 30]:#[0, 1, 5, 10, 15, 30]:
-        X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(dataset=dataset, feature_set=feature_set, normalize=True, embedding=embedding, historical_co2=historical_co2, shaped=shaped)
 
-        scores_train = []
-        scores_test_1 = []
-        scores_test_2 = []
-        scores_test_combined = []
-        autoencoders_train = []
-        classifiers_train = []
-        encoded_representations = []
-        predictions_1 = []
-        predictions_2 = []
-        for run in range(repeats):
-            print('Run: ' + str(run + 1) + ', Dataset: ' + dataset + ', Model: ' + name)
-            set_random_seed(run)
-            acc_train, acc_test_1, acc_test_2, acc_test_combined, autoencoder_train, classifier_train, encoded_representation, y_pred_test_1, y_pred_test_2 = run_model(
-                X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, dataset, batch_size, epochs, embedding, historical_co2, feature_set, name)
-            scores_train.append(acc_train)
-            scores_test_1.append(acc_test_1)
-            scores_test_2.append(acc_test_2)
-            scores_test_combined.append(acc_test_combined)
-            autoencoders_train.append(autoencoder_train)
-            classifiers_train.append(classifier_train)
-            encoded_representations.append(encoded_representation)
-            predictions_1.append(y_pred_test_1)
-            predictions_2.append(y_pred_test_2)
+    #for historical_co2 in [1, 15, 30]:#[0, 1, 5, 10, 15, 30]:
+    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(dataset=dataset, feature_set=feature_set, normalize=True, embedding=embedding, historical_co2=historical_co2, shaped=shaped)
 
-        if plot_representation:
-            max_value = max(scores_test_combined)
-            max_value_index = scores_test_combined.index(max_value)
+    scores_train = []
+    scores_test_1 = []
+    scores_test_2 = []
+    scores_test_combined = []
+    autoencoders_train = []
+    classifiers_train = []
+    encoded_representations = []
+    predictions_1 = []
+    predictions_2 = []
+    for run in range(repeats):
+        print('Run: ' + str(run + 1) + ', Dataset: ' + dataset + ', Model: ' + name)
+        set_random_seed(run)
+        acc_train, acc_test_1, acc_test_2, acc_test_combined, autoencoder_train, classifier_train, encoded_representation, y_pred_test_1, y_pred_test_2 = run_model(
+            X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, dataset, batch_size, epochs, embedding, historical_co2, feature_set, name)
+        scores_train.append(acc_train)
+        scores_test_1.append(acc_test_1)
+        scores_test_2.append(acc_test_2)
+        scores_test_combined.append(acc_test_combined)
+        autoencoders_train.append(autoencoder_train)
+        classifiers_train.append(classifier_train)
+        encoded_representations.append(encoded_representation)
+        predictions_1.append(y_pred_test_1)
+        predictions_2.append(y_pred_test_2)
 
-            plot_autoencoder(encoded_representations[max_value_index], predictions_1[max_value_index], predictions_2[max_value_index], y_test_1, y_test_2, scores_test_combined, name)
-            loss_plot(autoencoders_train[max_value_index], name)
-            acc_plot(classifiers_train[max_value_index], name)
+    if plot_representation:
+        max_value = max(scores_test_combined)
+        max_value_index = scores_test_combined.index(max_value)
 
-        summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name, dataset, batch_size, epochs, repeats, embedding, feature_set, historical_co2, suffix='_+'+str(historical_co2)+'min')
+        plot_autoencoder(encoded_representations[max_value_index], predictions_1[max_value_index], predictions_2[max_value_index], y_test_1, y_test_2, scores_test_combined, name)
+        loss_plot(autoencoders_train[max_value_index], name)
+        acc_plot(classifiers_train[max_value_index], name)
+        plot_densities(dataset, feature_set, historical_co2, predictions_1[max_value_index], predictions_2[max_value_index], name)
+
+    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name, dataset, batch_size, epochs, repeats, embedding, feature_set, historical_co2)#, suffix='_+'+str(historical_co2)+'min')
 
 def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, dataset, batch_size, epochs, embedding, historical_co2, feature_set, name):
     y_shape = y_train.shape[1:]
@@ -113,8 +114,8 @@ def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y
         if layer.name not in ['classifier_1', 'classifier_2', 'classifier_3', 'classifier_4']:
             layer.trainable = False
 
-    print(autoencoder_for_training.get_weights()[0][1])
-    print(autoencoder_for_classifier.get_weights()[0][1])
+    if not np.array_equal(autoencoder_for_training.get_weights()[0][1], autoencoder_for_classifier.get_weights()[0][1]):
+        raise Exception("Weights of both encoders have to be identical")
 
     callbacks_list_classification = [
         EarlyStopping(monitor='val_binary_accuracy', patience=10)
@@ -146,7 +147,10 @@ def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y
     acc_test_2 = BinaryAccuracy()(y_test_2, pred_test_2)
     acc_test_combined = BinaryAccuracy()(y_test_combined, pred_test_combined)
 
-    encoded_representation = autoencoder_for_representation.predict(X_test_combined)
+    encoded_representation = [
+        autoencoder_for_representation.predict(X_test_1),
+        autoencoder_for_representation.predict(X_test_2),
+    ]
 
     return acc_train, acc_test_1, acc_test_2, acc_test_combined, autoencoder_train, classifier_train, encoded_representation, pred_test_1.round(), pred_test_2.round()
 
@@ -155,7 +159,7 @@ def build_autoencoder(embedding, X_train, target_shape):
     code_size = 2
 
     if embedding:
-        input_shape = pd.concat(X_train, axis=1).shape
+        input_shape = pd.concat(X_train, axis=1).shape[1:]
         input_layer, x = layers_embedding(X_train)
     else:
         input_shape = X_train.shape[1:]
@@ -182,21 +186,16 @@ def build_autoencoder(embedding, X_train, target_shape):
         #decoded = Dense(input_shape[-1], activation='relu')(decoded)
         return decoded
 
-    def representation(encoded):
-        representation = Flatten(name='classifier_1')(encoded)
-        representation = Dense(hidden_size / 2, activation='relu', name='classifier_2')(representation)
-        #representation = Dense(2, activation='relu', name='classifier_3')(representation) # For plot_autoencoder
-        return representation
-
-    representation = representation(encoded)
-
-    def classifier(representation):
-        classifier = Dense(units=target_shape[0], activation='sigmoid', name='classifier_4')(representation)
+    def classifier(encoded):
+        classifier = Flatten(name='classifier_1')(encoded)
+        classifier = Dense(hidden_size / 2, activation='relu', name='classifier_2')(classifier)
+        #classifier = Dense(2, activation='relu', name='classifier_3')(classifier) # For plot_autoencoder
+        classifier = Dense(units=target_shape[0], activation='sigmoid', name='classifier_4')(classifier)
         return classifier
 
     autoencoder_for_training = Model(inputs=input_layer, outputs=decoder(encoded))
     autoencoder_for_representation = Model(inputs=input_layer, outputs=encoded)
-    autoencoder_for_classifier = Model(inputs=input_layer, outputs=classifier(representation)) # This one has a seperate output to be used for classification
+    autoencoder_for_classifier = Model(inputs=input_layer, outputs=classifier(encoded)) # This one has a seperate output to be used for classification
     
     autoencoder_for_training.compile(loss='mse', optimizer=Adam(), metrics='mse')
     autoencoder_for_representation.compile(loss='mse', optimizer=Adam(), metrics='mse')
@@ -234,7 +233,7 @@ def acc_plot(classifier_train, model_name):
     plt.savefig(str(ROOT_DIR) + '/models/results/' + model_name + '_accuracy_plot.png')
     #plt.show()
 
-def plot_autoencoder(encoded_representation, y_pred_1, y_pred_2, y_test_1, y_test_2, scores_test_combined, model_name):
+def plot_autoencoder(encoded_representations, y_pred_1, y_pred_2, y_test_1, y_test_2, scores_test_combined, model_name):
     #tsne = TSNE(n_components=2, random_state=42)
 
     #X_transformed = tsne.fit_transform(best)
@@ -243,8 +242,8 @@ def plot_autoencoder(encoded_representation, y_pred_1, y_pred_2, y_test_1, y_tes
     test = [y_test_1, y_test_2]
     names = ['1', '2']
 
-    for y, y_pred, name in zip(test, pred, names):
-        y = y[:,0]
+    for y, y_pred, name, encoded_representation in zip(test, pred, names, encoded_representations):
+        y = y.to_numpy()[:,0]
         y_pred = y_pred[:,0]
 
         plt.figure(figsize=(12, 8))
@@ -255,7 +254,7 @@ def plot_autoencoder(encoded_representation, y_pred_1, y_pred_2, y_test_1, y_tes
             encoded_representation[condition,1],
             marker='o',
             color='red',
-            label='Non-Occupancy (Detected)'
+            label='True Non-Occupancy (' + str(np.count_nonzero(condition)) + ')'
         )
         condition = np.all([y==0, y_pred==1], axis=0)
         plt.scatter(
@@ -263,7 +262,7 @@ def plot_autoencoder(encoded_representation, y_pred_1, y_pred_2, y_test_1, y_tes
             encoded_representation[condition,1],
             marker='o',
             color='salmon',
-            label='Non-Occupancy (Not detected)'
+            label='False Occupancy (' + str(np.count_nonzero(condition)) + ')'
         )
         condition = np.all([y==1, y_pred==1], axis=0)
         plt.scatter(
@@ -271,7 +270,7 @@ def plot_autoencoder(encoded_representation, y_pred_1, y_pred_2, y_test_1, y_tes
             encoded_representation[condition,1],
             marker='o',
             color='blue',
-            label='Occupancy (Detected)'
+            label='True Occupancy (' + str(np.count_nonzero(condition)) + ')'
         )
         condition = np.all([y==1, y_pred==0], axis=0)
         plt.scatter(
@@ -279,7 +278,7 @@ def plot_autoencoder(encoded_representation, y_pred_1, y_pred_2, y_test_1, y_tes
             encoded_representation[condition,1],
             marker='o',
             color='lightblue',
-            label='Occupancy (Not detected)'
+            label='False Non-Occupancy (' + str(np.count_nonzero(condition)) + ')'
         )
         
         plt.legend(loc='best')
@@ -289,6 +288,29 @@ def plot_autoencoder(encoded_representation, y_pred_1, y_pred_2, y_test_1, y_tes
 
         plt.savefig(str(ROOT_DIR) + '/models/results/' + model_name + '_representation_test_' + name + '.png')
         #plt.show()
+
+def plot_densities(dataset, feature_set, historical_co2, y_pred_test_1, y_pred_test_2, model_name):
+    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(dataset=dataset, feature_set=feature_set, normalize=False, embedding=False, historical_co2=historical_co2, shaped=False)
+    conditions = [(0,0), (0,1), (1,1), (1,0)]
+    condition_names = ['True Non-Occupant', 'False Occupant', 'True Occupant', 'False Non-Occupant']
+    export_suffix = ['TN', 'FP', 'TP', 'FN']
+    
+    for feature in X_test_1.columns:
+        for condition, condition_name, suffix in zip(conditions, condition_names, export_suffix):
+            condition_1 = np.all([y_test_1==condition[0], y_pred_test_1==condition[1]], axis=0)
+            condition_2 = np.all([y_test_2==condition[0], y_pred_test_2==condition[1]], axis=0)
+
+            plt.figure()
+            if np.count_nonzero(condition_1) > 1:
+                X_test_1.loc[condition_1, feature].plot.kde(label='Train 1')
+            if np.count_nonzero(condition_2) > 1:
+                X_test_2.loc[condition_2, feature].plot.kde(label='Train 2')
+
+            plt.title(feature + ' density for ' + condition_name + ' data points')
+            plt.xlabel('Feature values')
+            plt.ylabel('KDE')
+            plt.legend()
+            plt.savefig(str(ROOT_DIR) + '/models/results/' + model_name + '_densities_' + feature + '_' + suffix + '.png')
 
 if __name__ == '__main__':
     main()
