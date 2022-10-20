@@ -34,54 +34,54 @@ from models.embedding.embedding import layers_embedding
 
 def main():
     dataset = 'uci'
-    batch_size = 16 # 64
-    epochs = 30 # 200
+    batch_size = 32 # 64
+    epochs = 50 # 200
     repeats = 10
-    historical_co2 = False
-    embedding = False
-    feature_set = 'full'
+    historical_co2 = True
+    embedding = True
+    feature_set = 'CO2'
     name = 'autoencoder'
     shaped = False
     plot_representation = True
 
 
-    #for historical_co2 in [1, 15, 30]:#[0, 1, 5, 10, 15, 30]:
-    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(dataset=dataset, feature_set=feature_set, normalize=True, embedding=embedding, historical_co2=historical_co2, shaped=shaped)
+    for historical_co2 in [1, 10, 15, 30]:#[0, 1, 5, 10, 15, 30]:
+        X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(dataset=dataset, feature_set=feature_set, normalize=True, embedding=embedding, historical_co2=historical_co2, shaped=shaped)
 
-    scores_train = []
-    scores_test_1 = []
-    scores_test_2 = []
-    scores_test_combined = []
-    autoencoders_train = []
-    classifiers_train = []
-    encoded_representations = []
-    predictions_1 = []
-    predictions_2 = []
-    for run in range(repeats):
-        print('Run: ' + str(run + 1) + ', Dataset: ' + dataset + ', Model: ' + name)
-        set_random_seed(run)
-        acc_train, acc_test_1, acc_test_2, acc_test_combined, autoencoder_train, classifier_train, encoded_representation, y_pred_test_1, y_pred_test_2 = run_model(
-            X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, dataset, batch_size, epochs, embedding, historical_co2, feature_set, name)
-        scores_train.append(acc_train)
-        scores_test_1.append(acc_test_1)
-        scores_test_2.append(acc_test_2)
-        scores_test_combined.append(acc_test_combined)
-        autoencoders_train.append(autoencoder_train)
-        classifiers_train.append(classifier_train)
-        encoded_representations.append(encoded_representation)
-        predictions_1.append(y_pred_test_1)
-        predictions_2.append(y_pred_test_2)
+        scores_train = []
+        scores_test_1 = []
+        scores_test_2 = []
+        scores_test_combined = []
+        autoencoders_train = []
+        classifiers_train = []
+        encoded_representations = []
+        predictions_1 = []
+        predictions_2 = []
+        for run in range(repeats):
+            print('Run: ' + str(run + 1) + ', Dataset: ' + dataset + ', Model: ' + name)
+            set_random_seed(run)
+            acc_train, acc_test_1, acc_test_2, acc_test_combined, autoencoder_train, classifier_train, encoded_representation, y_pred_test_1, y_pred_test_2 = run_model(
+                X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, dataset, batch_size, epochs, embedding, historical_co2, feature_set, name)
+            scores_train.append(acc_train)
+            scores_test_1.append(acc_test_1)
+            scores_test_2.append(acc_test_2)
+            scores_test_combined.append(acc_test_combined)
+            autoencoders_train.append(autoencoder_train)
+            classifiers_train.append(classifier_train)
+            encoded_representations.append(encoded_representation)
+            predictions_1.append(y_pred_test_1)
+            predictions_2.append(y_pred_test_2)
 
-    if plot_representation:
-        max_value = max(scores_test_combined)
-        max_value_index = scores_test_combined.index(max_value)
+        if plot_representation:
+            max_value = max(scores_test_combined)
+            max_value_index = scores_test_combined.index(max_value)
 
-        plot_autoencoder(encoded_representations[max_value_index], predictions_1[max_value_index], predictions_2[max_value_index], y_test_1, y_test_2, scores_test_combined, name)
-        loss_plot(autoencoders_train[max_value_index], name)
-        acc_plot(classifiers_train[max_value_index], name)
-        plot_densities(dataset, feature_set, historical_co2, predictions_1[max_value_index], predictions_2[max_value_index], name)
+            plot_autoencoder(encoded_representations[max_value_index], predictions_1[max_value_index], predictions_2[max_value_index], y_test_1, y_test_2, scores_test_combined, name)
+            loss_plot(autoencoders_train[max_value_index], name)
+            acc_plot(classifiers_train[max_value_index], name)
+            plot_densities(dataset, feature_set, historical_co2, predictions_1[max_value_index], predictions_2[max_value_index], name)
 
-    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name, dataset, batch_size, epochs, repeats, embedding, feature_set, historical_co2)#, suffix='_+'+str(historical_co2)+'min')
+        summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name, dataset, batch_size, epochs, repeats, embedding, feature_set, historical_co2, suffix='_+'+str(historical_co2)+'min')
 
 def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, dataset, batch_size, epochs, embedding, historical_co2, feature_set, name):
     y_shape = y_train.shape[1:]

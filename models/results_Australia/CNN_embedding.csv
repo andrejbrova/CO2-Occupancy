@@ -1,2 +1,2 @@
 ,batch size,epochs,repeats,embedding,feature set,historical co2,accuracy_train_mean,accuracy_train_std,accuracy_test_1_mean,accuracy_test_1_std
-LSTM,32,200,10,True,full,False,0.90912944,0.00141705,0.90879184,0.001490283
+CNN,32,200,10,True,full,False,0.9185296,0.0009459391,0.91886157,0.00093954394
