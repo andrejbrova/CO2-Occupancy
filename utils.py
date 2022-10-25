@@ -25,7 +25,7 @@ PREDICTION_HORIZON = 1
 
 
 def load_dataset(
-        dataset='Italy',  # 'uci', 'Australia', 'Denmark', 'Italy'
+        dataset='uci',  # 'uci', 'Australia', 'Denmark', 'Italy'
         feature_set='full',  # 'full', 'Light+CO2', 'CO2'
         historical_co2=False,
         normalize=False,
@@ -106,14 +106,28 @@ def load_dataset(
 
         # TODO feature sets
 
-        X = data.loc[:, ~'Occupancy']
+        X = data.loc[:, data.columns != 'Occupancy']
         y = pd.DataFrame(data.loc[:, 'Occupancy'])
 
-        if normalize:
-            X_scaleable = data.select_dtypes(exclude='category')
+        if normalize: # TODO: After data split!
+            X_scaleable = X.select_dtypes(exclude=['category', 'string', 'object'])
             x_scaler = dm.processing.Normalizer().fit(X_scaleable)
             X_scaleable = x_scaler.transform(X_scaleable)
             data[X_scaleable.columns] = X_scaleable
+
+        if shaped:
+            X, y = dm.processing.shape.get_windows(
+                LOOKBACK_HORIZON, X.to_numpy(), PREDICTION_HORIZON, y.to_numpy()
+            )
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, shuffle=True)
+        X_test_2 = X_test[0:100]  # Not the best solution, but test2 and test_combined are substituted by dummies here
+        X_test_combined = X_test[0:100]
+
+        if embedding:
+            X_train, X_test, X_test_2, X_test_combined, _ = get_embeddings(X_train, X_test, X_test_2, X_test_combined)
+
+        return X_train, X_test, X_test_2, X_test_combined, y_train, y_test, y_test[0:100], y_test[0:100]
 
     else:
         data = load_dataset_brick(dataset)
@@ -228,7 +242,7 @@ def load_dataset_graz():
 
     dataset = translate_columns(dataset)
 
-    dataset.loc[:, 'Occupancy'][dataset.loc[:, 'Occupancy'] > 0] = 1
+    dataset.loc[dataset.loc[:, 'Occupancy'] > 0, 'Occupancy'] = 1
     
     return dataset
 
@@ -242,7 +256,7 @@ def translate_columns(dataset): # Uses a dictionary to translate columns to a un
         'people': 'Occupancy'
     }
 
-    dataset.rename(columns=column_dict)
+    dataset = dataset.rename(columns=column_dict)
 
     return dataset
 

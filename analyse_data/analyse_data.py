@@ -1,19 +1,23 @@
 import pathlib
 import sys
+import warnings
 import pandas as pd
+import pandera as pa
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import cm
+from scipy.stats import normaltest
 
 directory = pathlib.Path(__file__).parent
 sys.path.append(str(directory.parent))
 
-from utils import load_dataset, get_feature_list
+from utils import load_dataset, load_dataset_graz, get_feature_list
 
 
 def main():
     #plot_correlation()
-    plot_hourly_distributions()
+    #plot_hourly_distributions()
+    dataset_validation()
 
 def plot_correlation():
     X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset()
@@ -88,6 +92,31 @@ def plot_hourly_distributions():
 
     plt.savefig(str(directory) + '/hourly_distribution.png', dpi=144)
     plt.show()
+
+def dataset_validation():
+    # References:
+    # https://pandera.readthedocs.io/en/stable/hypothesis.html
+
+    dataset = load_dataset_graz()
+
+    normal_check = pa.Hypothesis(
+        test=normaltest,
+        samples="normal_variable",
+        relationship=lambda stat, pvalue, alpha=0.05: pvalue >= alpha,
+        error='normality test',
+        raise_warning=True,
+    )
+
+    numeric_columns = dataset.select_dtypes(include=['int', 'float']).columns.to_list()
+    numeric_columns.remove('Occupancy')
+    columns_to_check = {}
+    for column in numeric_columns:
+        columns_to_check[column] = pa.Column(checks=normal_check)
+    schema = pa.DataFrameSchema(
+        columns=columns_to_check
+    )
+
+    schema.validate(dataset)
 
 if __name__ == '__main__':
     main()
