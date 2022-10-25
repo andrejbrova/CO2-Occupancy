@@ -4,9 +4,9 @@ from pathlib import Path
 
 from pandas import DatetimeIndex
 
-ROOT_DIR = Path(__file__).parents[0]
-sys.path.append(str(ROOT_DIR))
-sys.path.append(str(ROOT_DIR.parent) + '/Repos/datascience/')  # Path to datamodel location
+ROOT_DIR = str(Path(__file__).parents[0])
+sys.path.append(ROOT_DIR)
+sys.path.append(str(Path(__file__).parents[1]) + '/Repos/datascience/')  # Path to datamodel location
 
 import os
 import glob
@@ -16,6 +16,8 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 
 from datamodels import datamodels as dm
+
+DATA_DIR = ROOT_DIR + '/occupancy_data/'
 
 # Shape dimensions (used when 'shaped' is True)
 LOOKBACK_HORIZON = 48
@@ -97,6 +99,22 @@ def load_dataset(
 
         return X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined
 
+    elif dataset == 'Graz':
+        data = load_dataset_graz()
+
+        # TODO historical CO2
+
+        # TODO feature sets
+
+        X = data.loc[:, ~'Occupancy']
+        y = pd.DataFrame(data.loc[:, 'Occupancy'])
+
+        if normalize:
+            X_scaleable = data.select_dtypes(exclude='category')
+            x_scaler = dm.processing.Normalizer().fit(X_scaleable)
+            X_scaleable = x_scaler.transform(X_scaleable)
+            data[X_scaleable.columns] = X_scaleable
+
     else:
         data = load_dataset_brick(dataset)
 
@@ -152,9 +170,9 @@ def load_dataset(
 
 
 def load_dataset_uci():
-    training = pd.read_csv(str(ROOT_DIR) + '/occupancy_data/datatraining.txt', parse_dates=['date'])
-    test1 = pd.read_csv(str(ROOT_DIR) + '/occupancy_data/datatest.txt', parse_dates=['date'])
-    test2 = pd.read_csv(str(ROOT_DIR) + '/occupancy_data/datatest2.txt', parse_dates=['date'])
+    training = pd.read_csv(ROOT_DIR + '/occupancy_data/datatraining.txt', parse_dates=['date'])
+    test1 = pd.read_csv(ROOT_DIR + '/occupancy_data/datatest.txt', parse_dates=['date'])
+    test2 = pd.read_csv(ROOT_DIR + '/occupancy_data/datatest2.txt', parse_dates=['date'])
 
     training = training.set_index('date')
     test1 = test1.set_index('date')
@@ -174,17 +192,10 @@ def load_dataset_brick(country):
         'Australia': 'Australia/Occupancy_Measurement_Study7.csv',
         'Italy': 'Italy/Occupancy_Measurement_Study10.csv'
     }
-    translate_columns = {
-        'Indoor_Temp[C]': 'Temperature',
-        'Indoor_RH[%]': 'Humidity',
-        'Indoor_CO2[ppm]': 'CO2',
-        'Occupancy_Measurement[0-Unoccupied;1-Occupied]': 'Occupancy',
-        'Occupant_Number_Measurement': 'Occupancy'
-    }
 
-    dataset_1 = pd.read_csv(str(ROOT_DIR) + '/occupancy_data/' + filename_1[country], index_col='Date_Time',
+    dataset_1 = pd.read_csv(DATA_DIR + filename_1[country], index_col='Date_Time',
                             na_values=-999, parse_dates=True)
-    dataset_2 = pd.read_csv(str(ROOT_DIR) + '/occupancy_data/' + filename_2[country], index_col='Date_Time',
+    dataset_2 = pd.read_csv(DATA_DIR + filename_2[country], index_col='Date_Time',
                             na_values=-999, parse_dates=True)
 
     dataset = pd.concat([dataset_1, dataset_2], axis=1)
@@ -193,7 +204,7 @@ def load_dataset_brick(country):
     dataset = dataset.loc[:, ~dataset.columns.duplicated()]  # Drop the second Room_ID column
     dataset['Room_ID'] = dataset['Room_ID'].astype('category')
 
-    dataset = dataset.rename(columns=translate_columns)
+    dataset = translate_columns(dataset)
 
     dataset = dataset[['Temperature', 'CO2', 'Room_ID', 'Occupancy']]
     if country == 'Italy':
@@ -205,6 +216,35 @@ def load_dataset_brick(country):
 
     return dataset
 
+def load_dataset_graz():
+    dataset = pd.read_excel(
+        DATA_DIR + 'Graz_occupants.xlsx',
+        index_col='datetime',
+        parse_dates=True
+    )
+
+    for column in dataset.iloc[:, 4:]:
+        dataset.loc[:, column] = pd.to_numeric(dataset.loc[:, column].str.replace(r'[^0-9-.]+', ''))
+
+    dataset = translate_columns(dataset)
+
+    dataset.loc[:, 'Occupancy'][dataset.loc[:, 'Occupancy'] > 0] = 1
+    
+    return dataset
+
+def translate_columns(dataset): # Uses a dictionary to translate columns to a unified naming system
+    column_dict = {
+        'Indoor_Temp[C]': 'Temperature',
+        'Indoor_RH[%]': 'Humidity',
+        'Indoor_CO2[ppm]': 'CO2',
+        'Occupancy_Measurement[0-Unoccupied;1-Occupied]': 'Occupancy',
+        'Occupant_Number_Measurement': 'Occupancy',
+        'people': 'Occupancy'
+    }
+
+    dataset.rename(columns=column_dict)
+
+    return dataset
 
 def get_embeddings(X, X_test_1, X_test_2, X_test_combined):
     cat_vars = [
@@ -212,10 +252,10 @@ def get_embeddings(X, X_test_1, X_test_2, X_test_combined):
         'Weekday'
     ]
 
-    X['Weekday'] = X.index.weekday
-    X_test_1['Weekday'] = X_test_1.index.weekday
-    X_test_2['Weekday'] = X_test_2.index.weekday
-    X_test_combined['Weekday'] = X_test_combined.index.weekday
+    X = X.assign(Weekday=X.index.weekday)
+    X_test_1 = X_test_1.assign(Weekday=X_test_1.index.weekday)
+    X_test_2 = X_test_2.assign(Weekday=X_test_2.index.weekday)
+    X_test_combined = X_test_combined.assign(Weekday=X_test_combined.index.weekday)
 
     cat_vars = X.columns.intersection(cat_vars)
 
@@ -304,11 +344,11 @@ def summarize_results(
     else:
         folder = 'results_' + dataset + '/'
 
-    pd.DataFrame(result, index=[model_name]).to_csv(str(ROOT_DIR) + '/models/' + folder + model_name + suffix + '.csv')
+    pd.DataFrame(result, index=[model_name]).to_csv(ROOT_DIR + '/models/' + folder + model_name + suffix + '.csv')
 
 
 def concat_tables():
-    path = str(ROOT_DIR) + '/models/results/'
+    path = ROOT_DIR + '/models/results/'
     csv_files = glob.glob(os.path.join(path, "*.csv"))
 
     tables = []

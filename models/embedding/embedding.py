@@ -24,11 +24,11 @@ from utils import load_dataset, get_embeddings, summarize_results
 def main():
     dataset = 'uci'
     feature_set='CO2'
-    historical_co2=True
+    historical_co2=False
     batch_size = 32
     epochs = 50
     repeats = 10
-    model_name = 'SRNN'
+    model_name = 'LSTM'
     # shaping is not working with embedding so far
 
     models = {
@@ -38,8 +38,7 @@ def main():
         'SRNN': layers_SRNN,
     }
 
-    for historical_co2 in [1, 5, 10, 15, 30]:
-        run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repeats, models[model_name], model_name)
+    run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repeats, models[model_name], model_name)
 
 def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repeats, model_layers, model_name):
     X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(
@@ -68,7 +67,7 @@ def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repe
         scores_test_2.append(acc_test_2)
         scores_test_combined.append(acc_test_combined)
 
-    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name, dataset, batch_size, epochs, repeats, True, feature_set, historical_co2, suffix='_+'+str(historical_co2)+'min')
+    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name, dataset, batch_size, epochs, repeats, True, feature_set, historical_co2)#, suffix='_+'+str(historical_co2)+'min')
     
     for cat_var in encoders.keys():
         plot_embedding(models, dataset, encoders, cat_var, scores_test_1, model_name)        
@@ -177,7 +176,7 @@ def layers_embedding(X_train):
         inputs.append(i)
         embed_layers.append(o)
 
-    embed = Concatenate()(embed_layers)
+    embed = Concatenate()(embed_layers, axis=-1)
     embed = Dropout(0.04)(embed)
 
     cont_input = Input(shape=(len(cont_vars),))
