@@ -119,10 +119,6 @@ def load_dataset(
         elif dataset=='Australia':
             testData = data.loc['1/23/2020  12:00:00 AM':'3/23/2020  11:55:00 PM', :]
             trainData = data.drop(testData.index)
-            print(trainData)
-            print(trainData.shape)
-            print(testData.shape)
-            print(data.shape)
         else:
             print('The dataset you chose is not one of the new datasets!')
 
