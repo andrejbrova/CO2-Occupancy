@@ -33,16 +33,16 @@ from models.embedding.embedding import layers_embedding
 
 
 def main():
-    dataset = 'uci'
+    dataset = 'Denmark'
     batch_size = 32 # 64
-    epochs = 50 # 200
-    repeats = 10
+    epochs = 2 # 200 #50
+    repeats = 1
     historical_co2 = False
     embedding = True
-    feature_set = 'CO2'
+    feature_set = 'full'
     name = 'autoencoder'
     shaped = False
-    plot_representation = False
+    plot_representation = True
 
 
     X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(dataset=dataset, feature_set=feature_set, normalize=True, embedding=embedding, historical_co2=historical_co2, shaped=shaped)
@@ -113,7 +113,7 @@ def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y
         if layer.name not in ['classifier_1', 'classifier_2', 'classifier_3', 'classifier_4']:
             layer.trainable = False
 
-    if not np.array_equal(autoencoder_for_training.get_weights()[0][1], autoencoder_for_classifier.get_weights()[0][1]):
+    if not np.array_equal(autoencoder_for_training.get_weights()[0], autoencoder_for_classifier.get_weights()[0]):
         raise Exception("Weights of both encoders have to be identical")
 
     callbacks_list_classification = [
@@ -294,7 +294,7 @@ def plot_densities(dataset, feature_set, historical_co2, y_pred_test_1, y_pred_t
     condition_names = ['True Non-Occupant', 'False Occupant', 'True Occupant', 'False Non-Occupant']
     export_suffix = ['TN', 'FP', 'TP', 'FN']
     
-    for feature in X_test_1.columns:
+    for feature in X_test_1.select_dtypes(exclude=['category', 'string', 'object']).columns:
         for condition, condition_name, suffix in zip(conditions, condition_names, export_suffix):
             condition_1 = np.all([y_test_1==condition[0], y_pred_test_1==condition[1]], axis=0)
             condition_2 = np.all([y_test_2==condition[0], y_pred_test_2==condition[1]], axis=0)

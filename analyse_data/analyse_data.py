@@ -96,24 +96,32 @@ def plot_hourly_distributions():
 def dataset_validation():
     # References:
     # https://pandera.readthedocs.io/en/stable/hypothesis.html
+    # https://pandera.readthedocs.io/en/v0.6.5/generated/pandera.hypotheses.Hypothesis.html?highlight=pa.Hypothesis
+    # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.normaltest.html
 
     dataset = load_dataset_graz()
 
     normal_check = pa.Hypothesis(
         test=normaltest,
-        samples="normal_variable",
         relationship=lambda stat, pvalue, alpha=0.05: pvalue >= alpha,
         error='normality test',
         raise_warning=True,
     )
 
-    numeric_columns = dataset.select_dtypes(include=['int', 'float']).columns.to_list()
-    numeric_columns.remove('Occupancy')
-    columns_to_check = {}
-    for column in numeric_columns:
-        columns_to_check[column] = pa.Column(checks=normal_check)
+    columns_to_check = {
+        'CO2 (WL)': pa.Column(int, normal_check),
+        'CO2 (WM)': pa.Column(int, normal_check),
+        'CO2 (WR)': pa.Column(int, normal_check),
+        'Humidity (WL)': pa.Column(float, normal_check),
+        'Humidity (WM)': pa.Column(float, normal_check),
+        'Humidity (WR)': pa.Column(float, normal_check),
+        'Temperature (WL)': pa.Column(float, normal_check),
+        'Temperature (WM)': pa.Column(float, normal_check),
+        'Temperature (WR)': pa.Column(float, normal_check),
+    }
+
     schema = pa.DataFrameSchema(
-        columns=columns_to_check
+        columns=columns_to_check,
     )
 
     schema.validate(dataset)

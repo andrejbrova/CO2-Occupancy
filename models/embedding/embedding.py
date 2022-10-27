@@ -176,7 +176,7 @@ def layers_embedding(X_train):
         inputs.append(i)
         embed_layers.append(o)
 
-    embed = Concatenate()(embed_layers, axis=-1)
+    embed = Concatenate(axis=-1)(embed_layers)
     embed = Dropout(0.04)(embed)
 
     cont_input = Input(shape=(len(cont_vars),))

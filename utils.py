@@ -226,7 +226,7 @@ def load_dataset_brick(country):
     dataset = dataset.dropna()
 
     if country == 'Denmark':
-        dataset['Occupancy'][dataset['Occupancy'] > 0] = 1
+        dataset.loc[dataset.loc[:, 'Occupancy'] > 0, 'Occupancy'] = 1
 
     return dataset
 
