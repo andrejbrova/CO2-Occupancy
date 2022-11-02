@@ -25,12 +25,13 @@ PREDICTION_HORIZON = 1
 
 
 def load_dataset(
-        dataset='uci',  # 'uci', 'Australia', 'Denmark', 'Italy'
+        dataset='uci',  # 'uci', 'Australia', 'Denmark', 'Italy', 'Graz'
         feature_set='full',  # 'full', 'Light+CO2', 'CO2'
         historical_co2=False,
         normalize=False,
         embedding=False,
-        shaped=False
+        shaped=False,
+        split_data=True
 ):
     if embedding and shaped:
         print('Cannot use embedding on shaped dataset')
@@ -97,7 +98,7 @@ def load_dataset(
                 LOOKBACK_HORIZON, X_test_combined.to_numpy(), PREDICTION_HORIZON, y_test_combined.to_numpy(),
             )
 
-        return X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined
+        return X_train, [X_test_1, X_test_2, X_test_combined], y_train, [y_test_1, y_test_2, y_test_combined]
 
     elif dataset == 'Graz':
         data = load_dataset_graz()
@@ -120,6 +121,9 @@ def load_dataset(
                 LOOKBACK_HORIZON, X.to_numpy(), PREDICTION_HORIZON, y.to_numpy()
             )
 
+        if not split_data:
+            return X, y
+
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, shuffle=True)
         X_test_2 = X_test[0:100]  # Not the best solution, but test2 and test_combined are substituted by dummies here
         X_test_combined = X_test[0:100]
@@ -127,7 +131,7 @@ def load_dataset(
         if embedding:
             X_train, X_test, X_test_2, X_test_combined, _ = get_embeddings(X_train, X_test, X_test_2, X_test_combined)
 
-        return X_train, X_test, X_test_2, X_test_combined, y_train, y_test, y_test[0:100], y_test[0:100]
+        return X_train, [X_test], y_train, [y_test]
 
     else:
         data = load_dataset_brick(dataset)

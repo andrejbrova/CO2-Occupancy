@@ -33,16 +33,16 @@ from models.embedding.embedding import layers_embedding
 
 
 def main():
-    dataset = 'Denmark'
+    dataset = 'uci'
     batch_size = 32 # 64
-    epochs = 2 # 200 #50
-    repeats = 1
-    historical_co2 = False
-    embedding = True
-    feature_set = 'full'
+    epochs = 50
+    repeats = 10
+    historical_co2 = 15
+    embedding = False
+    feature_set = 'CO2'
     name = 'autoencoder'
     shaped = False
-    plot_representation = True
+    plot_representation = False
 
 
     X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(dataset=dataset, feature_set=feature_set, normalize=True, embedding=embedding, historical_co2=historical_co2, shaped=shaped)
@@ -80,7 +80,7 @@ def main():
         acc_plot(classifiers_train[max_value_index], name)
         plot_densities(dataset, feature_set, historical_co2, predictions_1[max_value_index], predictions_2[max_value_index], name)
 
-    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name, dataset, batch_size, epochs, repeats, embedding, feature_set, historical_co2)#, suffix='_+'+str(historical_co2)+'min')
+    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, name, dataset, batch_size, epochs, repeats, embedding, feature_set, historical_co2, suffix='_+'+str(historical_co2)+'min')
 
 def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, dataset, batch_size, epochs, embedding, historical_co2, feature_set, name):
     y_shape = y_train.shape[1:]
@@ -248,36 +248,40 @@ def plot_autoencoder(encoded_representations, y_pred_1, y_pred_2, y_test_1, y_te
         plt.figure(figsize=(12, 8))
 
         condition = np.all([y==0, y_pred==0], axis=0)
+        number_instances = np.count_nonzero(condition)
         plt.scatter(
             encoded_representation[condition,0],
             encoded_representation[condition,1],
             marker='o',
             color='red',
-            label='True Non-Occupancy (' + str(np.count_nonzero(condition)) + ')'
+            label='True Non-Occupancy (' + str(number_instances) + str((number_instances / len(y)) * 100) + '%)'
         )
         condition = np.all([y==0, y_pred==1], axis=0)
+        number_instances = np.count_nonzero(condition)
         plt.scatter(
             encoded_representation[condition,0],
             encoded_representation[condition,1],
             marker='o',
             color='salmon',
-            label='False Occupancy (' + str(np.count_nonzero(condition)) + ')'
+            label='False Occupancy (' + str(number_instances) + str((number_instances / len(y)) * 100) + '%)'
         )
         condition = np.all([y==1, y_pred==1], axis=0)
+        number_instances = np.count_nonzero(condition)
         plt.scatter(
             encoded_representation[condition,0],
             encoded_representation[condition,1],
             marker='o',
             color='blue',
-            label='True Occupancy (' + str(np.count_nonzero(condition)) + ')'
+            label='True Occupancy (' + str(number_instances) + str((number_instances / len(y)) * 100) + '%)'
         )
         condition = np.all([y==1, y_pred==0], axis=0)
+        number_instances = np.count_nonzero(condition)
         plt.scatter(
             encoded_representation[condition,0],
             encoded_representation[condition,1],
             marker='o',
             color='lightblue',
-            label='False Non-Occupancy (' + str(np.count_nonzero(condition)) + ')'
+            label='False Non-Occupancy (' + str(number_instances) + str((number_instances / len(y)) * 100) + '%)'
         )
         
         plt.legend(loc='best')
@@ -301,9 +305,9 @@ def plot_densities(dataset, feature_set, historical_co2, y_pred_test_1, y_pred_t
 
             plt.figure()
             if np.count_nonzero(condition_1) > 1:
-                X_test_1.loc[condition_1, feature].plot.kde(label='Train 1')
+                X_test_1.loc[condition_1, feature].plot.kde(label='Test 1')
             if np.count_nonzero(condition_2) > 1:
-                X_test_2.loc[condition_2, feature].plot.kde(label='Train 2')
+                X_test_2.loc[condition_2, feature].plot.kde(label='Test 2')
 
             plt.title(feature + ' density for ' + condition_name + ' data points')
             plt.xlabel('Feature values')

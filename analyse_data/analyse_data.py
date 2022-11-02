@@ -1,5 +1,10 @@
-import pathlib
 import sys
+from pathlib import Path
+
+ROOT_DIR = str(Path(__file__).parents[1])
+ANALYSIS_DIR = ROOT_DIR + '/analyse_data/'
+sys.path.append(ROOT_DIR)
+
 import warnings
 import pandas as pd
 import pandera as pa
@@ -8,16 +13,15 @@ from matplotlib import pyplot as plt
 from matplotlib import cm
 from scipy.stats import normaltest
 
-directory = pathlib.Path(__file__).parent
-sys.path.append(str(directory.parent))
-
 from utils import load_dataset, load_dataset_graz, get_feature_list
 
 
 def main():
+    dataset = 'Graz'
+
     #plot_correlation()
-    #plot_hourly_distributions()
-    dataset_validation()
+    plot_hourly_distributions(dataset)
+    #dataset_validation()
 
 def plot_correlation():
     X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset()
@@ -37,11 +41,21 @@ def plot_correlation():
     plt.ylabel('Light')
     plt.legend(loc='upper left')
 
-    plt.savefig(str(directory) + '/correlation_light_temp.png')
+    plt.savefig(ROOT_DIR + '/correlation_light_temp.png')
     plt.show()
 
-def plot_hourly_distributions():
-    X_train, X_test_1, X_test_2, *_ = load_dataset()
+def plot_hourly_distributions(dataset):
+    X, _ = load_dataset(
+        dataset=dataset,
+        feature_set='full',
+        historical_co2=False,
+        normalize=False,
+        embedding=False,
+        shaped=False,
+        split_data=False
+        )
+
+    X = X.select_dtypes(include=np.number)
 
     features = [
         'Temperature',
@@ -56,12 +70,13 @@ def plot_hourly_distributions():
         ''
     ]
 
-    X = pd.concat([X_train, X_test_1, X_test_2])
-
     X['hour'] = X.index.hour
     X = X.set_index([X.index, 'hour'])
 
-    fig, axs = plt.subplots(2, 2, figsize=(12, 8))
+    number_features = X.shape[-1]
+    number_cols = 2 if number_features <= 6 else 3
+
+    fig, axs = plt.subplots(number_cols, 2, figsize=(12, 8))
     fig.subplots_adjust(hspace=0.3)
 
     for it, feature in enumerate(features):
@@ -90,7 +105,7 @@ def plot_hourly_distributions():
     axs[1, 1].set_xlabel('Hour')
     fig.suptitle('Hourly distributions of Temperature, CO2, Light and Humidity')
 
-    plt.savefig(str(directory) + '/hourly_distribution.png', dpi=144)
+    plt.savefig(ANALYSIS_DIR + dataset + '.png', dpi=144)
     plt.show()
 
 def dataset_validation():
