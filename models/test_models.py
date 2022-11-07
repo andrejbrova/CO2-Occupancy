@@ -38,7 +38,7 @@ def main():
         'GRU': (dm.GRU, layers_GRU)
     }
 
-    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(
+    X_train, X_test_list, y_train, y_test_list = load_dataset(
         dataset=dataset,
         feature_set=feature_set,
         historical_co2=historical_co2,
@@ -48,20 +48,16 @@ def main():
     )
 
     scores_train = []
-    scores_test_1 = []
-    scores_test_2 = []
-    scores_test_combined = []
+    scores_test_list = []
     
     for run in range(repeats):
         print('Run: ' + str(run + 1) + ', Dataset: ' + dataset + ', Model: ' + model_name)
         model = build_model(X_train.shape[0], X_train.shape[-1], 1, batch_size, epochs, models[model_name], model_name)
-        acc_train, acc_test_1, acc_test_2, acc_test_combined = run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, model, shaped)
+        acc_train, acc_test_1, acc_test_2, acc_test_combined = run_model(X_train, X_test_list[0], X_test_list[1], X_test_list[2], y_train, y_test_list[0], y_test_list[1], y_test_list[2], model, shaped)
         scores_train.append(acc_train)
-        scores_test_1.append(acc_test_1)
-        scores_test_2.append(acc_test_2)
-        scores_test_combined.append(acc_test_combined)
+        scores_test_list.append([acc_test_1, acc_test_2, acc_test_combined])
     
-    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name, dataset, batch_size, epochs, repeats, embedding, feature_set, historical_co2, suffix='_+'+str(historical_co2)+'min')
+    summarize_results(scores_train, scores_test_list, model_name, dataset, batch_size, epochs, repeats, embedding, feature_set, historical_co2, suffix='_+'+str(historical_co2)+'min')
 
 def build_model(n_timesteps, n_features, target_shape, batch_size, epochs, model_type, name):
     

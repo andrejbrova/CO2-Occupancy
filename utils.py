@@ -31,7 +31,7 @@ def load_dataset(
         normalize=False,
         embedding=False,
         shaped=False,
-        split_data=True
+        split_data=True # True, False, 'Seasonal'
 ):
     if embedding and shaped:
         print('Cannot use embedding on shaped dataset')
@@ -47,12 +47,12 @@ def load_dataset(
                 shift = historical_co2
             else:
                 shift = 1
-            features.append('CO2+1h')
-            training['CO2+1h'] = training.loc[:, 'CO2'].shift(shift)
+            features.append('CO2+shift')
+            training['CO2+shift'] = training.loc[:, 'CO2'].shift(shift)
             training = training.dropna()
-            test1['CO2+1h'] = test1.loc[:, 'CO2'].shift(shift)
+            test1['CO2+shift'] = test1.loc[:, 'CO2'].shift(shift)
             test1 = test1.dropna()
-            test2['CO2+1h'] = test2.loc[:, 'CO2'].shift(shift)
+            test2['CO2+shift'] = test2.loc[:, 'CO2'].shift(shift)
             test2 = test2.dropna()
 
         X_train = training.loc[:, features]
@@ -67,13 +67,14 @@ def load_dataset(
         X_test_combined = pd.concat([X_test_1, X_test_2])
         y_test_combined = pd.concat([y_test_1, y_test_2])
 
+        X_test_list = [X_test_1, X_test_2, X_test_combined]
+        y_test_list = [y_test_1, y_test_2, y_test_combined]
+
         if normalize:
             x_scaler = dm.processing.Normalizer().fit(X_train)
-
             X_train = x_scaler.transform(X_train)
-            X_test_1 = x_scaler.transform(X_test_1)
-            X_test_2 = x_scaler.transform(X_test_2)
-            X_test_combined = x_scaler.transform(X_test_combined)
+            for it, X_test in enumerate(X_test_list):
+                X_test_list[it] = x_scaler.transform(X_test)
 
         print(f'Training on {X_train.shape[0]} samples.')
         print(f'Testing on {X_test_1.shape[0]} samples (Test1).')
@@ -81,24 +82,18 @@ def load_dataset(
         print(f'input: {X_train.shape[-1]} features ({X_train.columns.tolist()}).')
 
         if embedding:
-            X_train, X_test_1, X_test_2, X_test_combined, _ = get_embeddings(X_train, X_test_1, X_test_2,
-                                                                             X_test_combined)
+            X_train, X_test_list, _ = get_embeddings(X_train, X_test_list)
 
         if shaped:
             X_train, y_train = dm.processing.shape.get_windows(
                 LOOKBACK_HORIZON, X_train.to_numpy(), PREDICTION_HORIZON, y_train.to_numpy()
             )
-            X_test_1, y_test_1 = dm.processing.shape.get_windows(
-                LOOKBACK_HORIZON, X_test_1.to_numpy(), PREDICTION_HORIZON, y_test_1.to_numpy(),
-            )
-            X_test_2, y_test_2 = dm.processing.shape.get_windows(
-                LOOKBACK_HORIZON, X_test_2.to_numpy(), PREDICTION_HORIZON, y_test_2.to_numpy(),
-            )
-            X_test_combined, y_test_combined = dm.processing.shape.get_windows(
-                LOOKBACK_HORIZON, X_test_combined.to_numpy(), PREDICTION_HORIZON, y_test_combined.to_numpy(),
-            )
+            for X_test, y_test in zip(X_test_list, y_test_list):
+                X_test, y_test = dm.processing.shape.get_windows(
+                    LOOKBACK_HORIZON, X_test.to_numpy(), PREDICTION_HORIZON, y_test.to_numpy(),
+                )
 
-        return X_train, [X_test_1, X_test_2, X_test_combined], y_train, [y_test_1, y_test_2, y_test_combined]
+        return X_train, X_test_list, y_train, y_test_list
 
     elif dataset == 'Graz':
         data = load_dataset_graz()
@@ -110,11 +105,9 @@ def load_dataset(
         X = data.loc[:, data.columns != 'Occupancy']
         y = pd.DataFrame(data.loc[:, 'Occupancy'])
 
-        if normalize: # TODO: After data split!
+        if normalize:
             X_scaleable = X.select_dtypes(exclude=['category', 'string', 'object'])
             x_scaler = dm.processing.Normalizer().fit(X_scaleable)
-            X_scaleable = x_scaler.transform(X_scaleable)
-            data[X_scaleable.columns] = X_scaleable
 
         if shaped:
             X, y = dm.processing.shape.get_windows(
@@ -125,13 +118,19 @@ def load_dataset(
             return X, y
 
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, shuffle=True)
-        X_test_2 = X_test[0:100]  # Not the best solution, but test2 and test_combined are substituted by dummies here
-        X_test_combined = X_test[0:100]
+        X_test_list = [X_test]
+        y_test_list = [y_test]
+
+        if normalize:
+            columns = X.select_dtypes(exclude=['category', 'string', 'object']).columns
+            x_scaler = dm.processing.Normalizer().fit(X_train)
+            X_train.loc[:,columns] = x_scaler.transform(X_train.loc[:,columns])
+            X_test_list[0].loc[:,columns] = x_scaler.transform(X_test_list[0].loc[:,columns])
 
         if embedding:
-            X_train, X_test, X_test_2, X_test_combined, _ = get_embeddings(X_train, X_test, X_test_2, X_test_combined)
+            X_train, X_test_list, _ = get_embeddings(X_train, X_test_list)
 
-        return X_train, [X_test], y_train, [y_test]
+        return X_train, X_test_list, y_train, y_test_list
 
     else:
         data = load_dataset_brick(dataset)
@@ -143,49 +142,47 @@ def load_dataset(
                 shift = historical_co2
             else:
                 shift = 1
-            features.append('CO2+1h')
-            data['CO2+1h'] = data.loc[:, 'CO2'].shift(shift)
-
-        # trainset = spring+autumn+winter(9th of March - 20th of June, 22th of September - 21st of February)
-        # testset = summer(21st of June - 21st of September)
-
-        # print(DatetimeIndex(data["Date_Time"]).date < datetime(2018, 6, 21))
-        # trainset = data[DatetimeIndex(data["Date_Time"]).date < datetime(2018, 6, 21) and DatetimeIndex(data["Date_Time"]).date > datetime(2018,9,21)]
-        # testset = data[DatetimeIndex(data["Date_Time"]).day >= datetime(2018, 6, 21) and DatetimeIndex(data["Date_Time"]).date <=datetime(2018, 9, 21)]
-        # print(trainset)
-        # print(testset)
-        # combined = pd.concat(trainset, testset)
-
-        # data['Date_Time'] = pd.to_datetime(data['Date_Time'])
-        # data = data.set_index(data['Date_Time'])
-        # data = data.set_index(data['Date_Time'])
-        # data = data.sort_index()
-        #
-        # train = data['']
+            features.append('CO2+shift')
+            data['CO2+shift'] = data.loc[:, 'CO2'].shift(shift)
 
         X = data.loc[:, data.columns.intersection(features)]
         y = pd.DataFrame(data.loc[:, 'Occupancy'])
-
-        if normalize:
-            X_scaleable = X.select_dtypes(exclude='category')
-            x_scaler = dm.processing.Normalizer().fit(X_scaleable)
-            X_scaleable = x_scaler.transform(X_scaleable)
-            X[X_scaleable.columns] = X_scaleable
 
         if shaped:
             X, y = dm.processing.shape.get_windows(
                 LOOKBACK_HORIZON, X.to_numpy(), PREDICTION_HORIZON, y.to_numpy()
             )
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, shuffle=True)
-        X_test_2 = X_test[0:100]  # Not the best solution, but test2 and test_combined are substituted by dummies here
-        X_test_combined = X_test[0:100]
+        if not split_data:
+            return X, y
+        elif split_data == 'Seasonal':
+            if dataset=='Denmark':
+                X_test = X.loc['6/21/2018  12:00:00 AM':'9/14/2018  11:59:00 PM', :]
+            elif dataset=='Italy':
+                X_test = X.loc['6/21/2016  12:00:00 AM':'9/21/2016  11:59:00 PM', :]
+            elif dataset=='Australia':
+                X_test = X.loc['1/23/2020  12:00:00 AM':'3/23/2020  11:55:00 PM', :]
+            else:
+                print('The dataset you chose is not one of the new datasets!')
+            X_train = X.drop(X_test.index)
+            y_train = y.drop(X_test.index)
+            y_test = y.loc[y_test.index,:]
+        else:
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, shuffle=True)
+
+        if normalize:
+            columns = X.select_dtypes(exclude=['category', 'string', 'object']).columns
+            x_scaler = dm.processing.Normalizer().fit(X_train)
+            X_train.loc[:,columns] = x_scaler.transform(X_train.loc[:,columns])
+            X_test.loc[:,columns] = x_scaler.transform(X_test.loc[:,columns])
+
+        X_test_list = [X_test]
+        y_test_list = [y_test]
 
         if embedding:
-            X_train, X_test, X_test_2, X_test_combined, _ = get_embeddings(X_train, X_test, X_test_2, X_test_combined)
+            X_train, X_test_list, _ = get_embeddings(X_train, X_test_list)
 
-        return X_train, X_test, X_test_2, X_test_combined, y_train, y_test, y_test[0:100], y_test[0:100]
-
+        return X_train, X_test_list, y_train, y_test_list
 
 def load_dataset_uci():
     training = pd.read_csv(ROOT_DIR + '/occupancy_data/datatraining.txt', parse_dates=['date'])
@@ -264,66 +261,58 @@ def translate_columns(dataset): # Uses a dictionary to translate columns to a un
 
     return dataset
 
-def get_embeddings(X, X_test_1, X_test_2, X_test_combined):
+def get_embeddings(X, X_test_list):
     cat_vars = [
         'Room_ID',
         'Weekday'
     ]
 
     X = X.assign(Weekday=X.index.weekday)
-    X_test_1 = X_test_1.assign(Weekday=X_test_1.index.weekday)
-    X_test_2 = X_test_2.assign(Weekday=X_test_2.index.weekday)
-    X_test_combined = X_test_combined.assign(Weekday=X_test_combined.index.weekday)
+    for X_test in X_test_list:
+        X_test.loc[:,'Weekday'] = X_test.index.weekday
 
     cat_vars = X.columns.intersection(cat_vars)
 
     # Encoding
-    X_combined = pd.concat([X, X_test_1, X_test_2])
+    X_combined = pd.concat([X] + X_test_list)
     encoders = {}
     for v in cat_vars:
         le = LabelEncoder()
         le.fit(X_combined[v].values)
         encoders[v] = le
         X.loc[:, v] = le.transform(X[v].values)
-        X_test_1.loc[:, v] = le.transform(X_test_1[v].values)
-        X_test_2.loc[:, v] = le.transform(X_test_2[v].values)
-        X_test_combined.loc[:, v] = le.transform(X_test_combined[v].values)
+        for X_test in X_test_list:
+            X_test.loc[:, v] = le.transform(X_test[v].values)
         print('{0}: {1}'.format(v, le.classes_))
 
     # Normalizing
     for v in cat_vars:
         X[v] = X[v].astype('category').cat.as_ordered()
-        X_test_1[v] = X_test_1[v].astype('category').cat.as_ordered()
-        X_test_2[v] = X_test_2[v].astype('category').cat.as_ordered()
-        X_test_combined[v] = X_test_combined[v].astype('category').cat.as_ordered()
+        for X_test in X_test_list:
+            X_test.loc[:,v] = X_test[v].astype('category').cat.as_ordered()
 
     # Reshape input
     X_array = []
-    X_test_1_array = []
-    X_test_2_array = []
-    X_test_combined_array = []
+    X_test_array_list = []
 
     for i, v in enumerate(cat_vars):
         X_array.append(X.loc[:, v])
-        X_test_1_array.append(X_test_1.loc[:, v])
-        X_test_2_array.append(X_test_2.loc[:, v])
-        X_test_combined_array.append(X_test_combined.loc[:, v])
+    for X_test in X_test_list:
+        X_test_array = []
+        for i, v in enumerate(cat_vars):
+            X_test_array.append(X_test.loc[:, v])
+        X_test_array_list.append(X_test_array)
 
     X_array.append(X.iloc[:, ~X.columns.isin(cat_vars)])
-    X_test_1_array.append(X_test_1.iloc[:, ~X_test_1.columns.isin(cat_vars)])
-    X_test_2_array.append(X_test_2.iloc[:, ~X_test_2.columns.isin(cat_vars)])
-    X_test_combined_array.append(X_test_combined.iloc[:, ~X_test_combined.columns.isin(cat_vars)])
+    for X_test, X_test_array in zip(X_test_list, X_test_array_list):
+        X_test_array.append(X_test.iloc[:, ~X_test.columns.isin(cat_vars)])
 
-    len(X_array), len(X_test_1_array), len(X_test_2_array)
-
-    return X_array, X_test_1_array, X_test_2_array, X_test_combined_array, encoders
+    return X_array, X_test_array_list, encoders
 
 
 def summarize_results(
         scores_train,
-        scores_test_1,
-        scores_test_2,
-        scores_test_combined,
+        scores_test_list,
         model_name='?',
         dataset='?',
         batch_size='?',
@@ -343,8 +332,8 @@ def summarize_results(
         'historical co2': historical_co2,
         'accuracy_train_mean': np.mean(scores_train),
         'accuracy_train_std': np.std(scores_train),
-        'accuracy_test_1_mean': np.mean(scores_test_1),
-        'accuracy_test_1_std': np.std(scores_test_1),
+        'accuracy_test_1_mean': np.mean([sublist[0] for sublist in scores_test_list]),
+        'accuracy_test_1_std': np.std([sublist[0] for sublist in scores_test_list]),
     }
 
     if feature_set != '?' and feature_set != 'full':
@@ -353,10 +342,10 @@ def summarize_results(
         suffix += '_embedding'
     if dataset == '?' or dataset == 'uci':
         result.update({  # Add evaluation for second and combined test set
-            'accuracy_test_2_mean': np.mean(scores_test_2),
-            'accuracy_test_2_std': np.std(scores_test_2),
-            'accuracy_test_combined_mean': np.mean(scores_test_combined),
-            'accuracy_test_combined_std': np.std(scores_test_combined)
+            'accuracy_test_2_mean': np.mean([sublist[1] for sublist in scores_test_list]),
+            'accuracy_test_2_std': np.std([sublist[1] for sublist in scores_test_list]),
+            'accuracy_test_combined_mean': np.mean([sublist[2] for sublist in scores_test_list]),
+            'accuracy_test_combined_std': np.std([sublist[2] for sublist in scores_test_list])
         })
         folder = 'results/'
     else:

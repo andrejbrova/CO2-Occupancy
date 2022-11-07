@@ -12,6 +12,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import cm
 from scipy.stats import normaltest
+import seaborn as sn
 
 from utils import load_dataset, load_dataset_graz, get_feature_list
 
@@ -20,7 +21,8 @@ def main():
     dataset = 'Graz'
 
     #plot_correlation()
-    plot_hourly_distributions(dataset)
+    plot_correlation_matrix(dataset)
+    #plot_hourly_distributions(dataset)
     #dataset_validation()
 
 def plot_correlation():
@@ -44,6 +46,22 @@ def plot_correlation():
     plt.savefig(ROOT_DIR + '/correlation_light_temp.png')
     plt.show()
 
+def plot_correlation_matrix(dataset_name):
+    dataset_functions = {
+        'Graz': load_dataset_graz
+    }
+    dataset = dataset_functions[dataset_name]()
+
+    corrMatrix = dataset.corr()
+
+    plt.figure(figsize=(12, 8))
+
+    ax = sn.heatmap(corrMatrix, annot=True)
+    ax.figure.tight_layout()
+
+    plt.savefig(ANALYSIS_DIR + 'Correlation_Matrices/Corr_' + dataset_name + '.png')
+    plt.show()
+
 def plot_hourly_distributions(dataset):
     X, _ = load_dataset(
         dataset=dataset,
@@ -57,35 +75,19 @@ def plot_hourly_distributions(dataset):
 
     X = X.select_dtypes(include=np.number)
 
-    features = [
-        'Temperature',
-        'Light',
-        'CO2',
-        'Humidity'
-    ]
-    labels = [
-        '°C',
-        '',
-        '',
-        ''
-    ]
-
     X['hour'] = X.index.hour
     X = X.set_index([X.index, 'hour'])
 
     number_features = X.shape[-1]
     number_cols = 2 if number_features <= 6 else 3
+    number_rows = int(np.ceil(number_features / number_cols))
 
-    fig, axs = plt.subplots(number_cols, 2, figsize=(12, 8))
+    fig, axs = plt.subplots(number_cols, number_rows, figsize=(6*number_cols, 4*number_rows))
     fig.subplots_adjust(hspace=0.3)
 
-    for it, feature in enumerate(features):
-        if it < 2:
-            x = it
-            y = 0
-        else:
-            x = it-2
-            y = 1
+    for it, feature in enumerate(X.columns):
+        x = it % number_cols
+        y = int(it / number_cols)
 
         X_hourly = X[feature].unstack(level=1)
         X_list = []
@@ -93,19 +95,20 @@ def plot_hourly_distributions(dataset):
             X_list.append(X_hourly[x_hour].dropna().to_numpy())
 
         bplot = axs[x,y].boxplot(x=X_list, widths=0.8, patch_artist=True)
-        axs[x,y].set_title(features[it])
-        axs[x,y].set_ylabel(labels[it])
+        axs[x,y].set_title(feature)
+        #axs[x,y].set_ylabel(labels[it])
 
         cmap = plt.cm.ScalarMappable(cmap='rainbow')
         test_mean = [x for x in range(len(X_list))]
         for patch, color in zip(bplot['boxes'], cmap.to_rgba(test_mean)):
             patch.set_facecolor(color)
     
-    axs[1, 0].set_xlabel('Hour')
-    axs[1, 1].set_xlabel('Hour')
-    fig.suptitle('Hourly distributions of Temperature, CO2, Light and Humidity')
+    for ax in axs.flat:
+        ax.set(xlabel='Hours')
 
-    plt.savefig(ANALYSIS_DIR + dataset + '.png', dpi=144)
+    fig.suptitle('Hourly distributions of features for ' + dataset + ' dataset')
+
+    plt.savefig(ANALYSIS_DIR + 'Hourly_distribution/' + dataset + '.png', dpi=144)
     plt.show()
 
 def dataset_validation():
