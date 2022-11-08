@@ -172,7 +172,7 @@ def load_dataset(
 
         if normalize:
             columns = X.select_dtypes(exclude=['category', 'string', 'object']).columns
-            x_scaler = dm.processing.Normalizer().fit(X_train)
+            x_scaler = dm.processing.Normalizer().fit(X_train.loc[:,columns])
             X_train.loc[:,columns] = x_scaler.transform(X_train.loc[:,columns])
             X_test.loc[:,columns] = x_scaler.transform(X_test.loc[:,columns])
 

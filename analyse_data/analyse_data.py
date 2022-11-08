@@ -13,6 +13,7 @@ from matplotlib import pyplot as plt
 from matplotlib import cm
 from scipy.stats import normaltest
 import seaborn as sn
+import pickle as pkl
 
 from utils import load_dataset, load_dataset_graz, get_feature_list
 
@@ -21,7 +22,8 @@ def main():
     dataset = 'Graz'
 
     #plot_correlation()
-    plot_correlation_matrix(dataset)
+    plot_timeline(dataset)
+    #plot_correlation_matrix(dataset)
     #plot_hourly_distributions(dataset)
     #dataset_validation()
 
@@ -45,6 +47,49 @@ def plot_correlation():
 
     plt.savefig(ROOT_DIR + '/correlation_light_temp.png')
     plt.show()
+
+def plot_timeline(dataset):
+    if dataset != 'Graz':
+        raise Exception('This function only works with Graz dataset so far!')
+
+    date = pd.Timestamp('2022-07-26')
+    n_days = 7
+
+    X, y = load_dataset(
+        dataset=dataset,
+        feature_set='full',
+        historical_co2=False,
+        normalize=False,
+        embedding=False,
+        shaped=False,
+        split_data=False
+        )
+
+    features = [
+        'CO2',
+        'Humidity',
+        'Temperature'
+    ]
+
+    fig, ax = plt.subplots(len(features), 1, figsize=(6, 3*len(features)))
+
+    for row, column in enumerate(features):
+        ax[row].set_title(column)
+        X[column + ' (WL)'].plot(ax=ax[row], color='red', label='Window Left', xlabel=None)
+        X[column + ' (WM)'].plot(ax=ax[row], color='blue', label='Window Middle', xlabel=None)
+        X[column + ' (WR)'].plot(ax=ax[row], color='green', label='Window Right', xlabel=None)
+        ax[row].set_ylabel('Feature value')
+        ax[row].set_xlim(left=date, right=date + pd.DateOffset(days=7))
+        ax[row].legend()
+
+    plt.setp(ax[-1], xlabel='Date')
+    plt.suptitle(dataset + ' timelines')
+    plt.tight_layout()
+
+    pkl.dump((fig, ax), open(ANALYSIS_DIR + 'Timelines/' + dataset + '.pickle', 'wb'))
+    plt.savefig(ANALYSIS_DIR + 'Timelines/' + dataset + '.png')
+    plt.show()
+    plt.clf()
 
 def plot_correlation_matrix(dataset_name):
     dataset_functions = {

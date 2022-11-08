@@ -33,16 +33,17 @@ from models.embedding.embedding import layers_embedding
 
 
 def main():
-    dataset = 'uci'
-    batch_size = 16 # 64
-    epochs = 30
+    dataset = 'Denmark'
+    batch_size = 32 # 64
+    epochs = 200
     repeats = 10
     historical_co2 = False
     embedding = True
-    feature_set = 'Light+CO2'
+    feature_set = 'full'
     name = 'autoencoder'
     shaped = False
-    plot_representation = True
+    split_data = 'Seasonal'
+    plot_representation = False
 
 
     X_train, X_test_list, y_train, y_test_list = load_dataset(dataset=dataset, feature_set=feature_set, normalize=True, embedding=embedding, historical_co2=historical_co2, shaped=shaped)
@@ -239,24 +240,6 @@ def plot_autoencoder(encoded_representations, y_pred_list, y_test_list, scores_t
 
         plt.figure(figsize=(12, 8))
 
-        condition = np.all([y==0, y_pred==0], axis=0)
-        number_instances = np.count_nonzero(condition)
-        plt.scatter(
-            encoded_representation[condition,0],
-            encoded_representation[condition,1],
-            marker='o',
-            color='red',
-            label='True Non-Occupancy (' + str(number_instances) + ' instances, ' + str(round(((number_instances / len(y)) * 100), 1)) + '%)'
-        )
-        condition = np.all([y==0, y_pred==1], axis=0)
-        number_instances = np.count_nonzero(condition)
-        plt.scatter(
-            encoded_representation[condition,0],
-            encoded_representation[condition,1],
-            marker='o',
-            color='salmon',
-            label='False Occupancy (' + str(number_instances) + ' instances, ' + str(round(((number_instances / len(y)) * 100), 1)) + '%)'
-        )
         condition = np.all([y==1, y_pred==1], axis=0)
         number_instances = np.count_nonzero(condition)
         plt.scatter(
@@ -275,6 +258,24 @@ def plot_autoencoder(encoded_representations, y_pred_list, y_test_list, scores_t
             color='lightblue',
             label='False Non-Occupancy (' + str(number_instances) + ' instances, ' + str(round(((number_instances / len(y)) * 100), 1)) + '%)'
         )
+        condition = np.all([y==0, y_pred==0], axis=0)
+        number_instances = np.count_nonzero(condition)
+        plt.scatter(
+            encoded_representation[condition,0],
+            encoded_representation[condition,1],
+            marker='o',
+            color='red',
+            label='True Non-Occupancy (' + str(number_instances) + ' instances, ' + str(round(((number_instances / len(y)) * 100), 1)) + '%)'
+        )
+        condition = np.all([y==0, y_pred==1], axis=0)
+        number_instances = np.count_nonzero(condition)
+        plt.scatter(
+            encoded_representation[condition,0],
+            encoded_representation[condition,1],
+            marker='o',
+            color='salmon',
+            label='False Occupancy (' + str(number_instances) + ' instances, ' + str(round(((number_instances / len(y)) * 100), 1)) + '%)'
+        )
         
         plt.legend(loc='best')
         plt.title('Representation of encoded data (test ' + name + ')')
@@ -286,9 +287,9 @@ def plot_autoencoder(encoded_representations, y_pred_list, y_test_list, scores_t
 
 def plot_densities(dataset, feature_set, historical_co2, y_pred_test_list, model_name):
     X_train, X_test_list, y_train, y_test_list = load_dataset(dataset=dataset, feature_set=feature_set, normalize=False, embedding=False, historical_co2=historical_co2, shaped=False)
-    conditions = [(0,0), (0,1), (1,1), (1,0)]
-    condition_names = ['True Non-Occupant', 'False Occupant', 'True Occupant', 'False Non-Occupant']
-    export_suffix = ['TN', 'FP', 'TP', 'FN']
+    conditions = [(1,1), (1,0), (0,0), (0,1)]
+    condition_names = ['True Occupant', 'False Non-Occupant', 'True Non-Occupant', 'False Occupant']
+    export_suffix = ['TP', 'FN', 'TN', 'FP']
 
     X_test_1 = X_test_list[0] # Will only work for uci dataset
     X_test_2 = X_test_list[1]
@@ -298,7 +299,7 @@ def plot_densities(dataset, feature_set, historical_co2, y_pred_test_list, model
     y_pred_test_2 = y_pred_test_list[1].round()
 
     features = X_test_list[0].select_dtypes(exclude=['category', 'string', 'object']).columns
-    fig, axs = plt.subplots(len(features), 4, figsize=(6*4, 4*len(features)))
+    fig, axs = plt.subplots(len(features), 4, figsize=(4*4, 3*len(features)))
     fig.subplots_adjust(hspace=0.3)
     
     for row, feature in enumerate(features):
