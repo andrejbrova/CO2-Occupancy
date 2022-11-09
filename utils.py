@@ -238,11 +238,22 @@ def load_dataset_graz():
         parse_dates=True
     )
 
+    # Remove faulty data
+    time_windows_to_exclude = [
+        slice(pd.Timestamp('2022-06-22 15:45:00'), pd.Timestamp('2022-07-18 16:05:00'))
+    ]
+
+    for time_window in time_windows_to_exclude:
+        dataset = dataset.drop(dataset.loc[time_window].index)
+
+    # Convert colums to numeric values
     for column in dataset.iloc[:, 4:]:
         dataset.loc[:, column] = pd.to_numeric(dataset.loc[:, column].str.replace(r'[^0-9-.]+', ''))
 
+    # Translate colum names
     dataset = translate_columns(dataset)
 
+    # Instead of total number of people, 'Occupancy' should indicate if room is occupied or not
     dataset.loc[dataset.loc[:, 'Occupancy'] > 0, 'Occupancy'] = 1
     
     return dataset

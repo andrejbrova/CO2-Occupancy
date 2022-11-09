@@ -87,7 +87,7 @@ def plot_timeline(dataset):
     plt.tight_layout()
 
     pkl.dump((fig, ax), open(ANALYSIS_DIR + 'Timelines/' + dataset + '.pickle', 'wb'))
-    plt.savefig(ANALYSIS_DIR + 'Timelines/' + dataset + '.png')
+    #plt.savefig(ANALYSIS_DIR + 'Timelines/' + dataset + '.png')
     plt.show()
     plt.clf()
 
