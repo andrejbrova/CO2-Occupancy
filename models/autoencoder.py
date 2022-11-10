@@ -44,6 +44,7 @@ def main():
     shaped = False
     split_data = 'Seasonal'
     plot_representation = False
+    code_size = 6 # 2 for plotting, 6 for brick dataset
 
 
     X_train, X_test_list, y_train, y_test_list = load_dataset(dataset=dataset, feature_set=feature_set, normalize=True, embedding=embedding, historical_co2=historical_co2, shaped=shaped)
@@ -58,7 +59,7 @@ def main():
         print('Run: ' + str(run + 1) + ', Dataset: ' + dataset + ', Model: ' + name)
         set_random_seed(run)
         acc_train, acc_test_list, autoencoder_train, classifier_train, encoded_representation, y_pred_test_list = run_model(
-            X_train, X_test_list, y_train, y_test_list, dataset, batch_size, epochs, embedding, historical_co2, feature_set, name)
+            X_train, X_test_list, y_train, y_test_list, dataset, batch_size, epochs, embedding, historical_co2, feature_set, code_size, name)
         scores_train.append(acc_train)
         scores_test_list.append(acc_test_list)
         autoencoders_train.append(autoencoder_train)
@@ -78,12 +79,12 @@ def main():
 
     summarize_results(scores_train, scores_test_list, name, dataset, batch_size, epochs, repeats, embedding, feature_set, historical_co2)#, suffix='_+'+str(historical_co2)+'min')
 
-def run_model(X_train, X_test_list, y_train, y_test_list, dataset, batch_size, epochs, embedding, historical_co2, feature_set, name):
+def run_model(X_train, X_test_list, y_train, y_test_list, dataset, batch_size, epochs, embedding, historical_co2, feature_set, code_size, name):
     y_shape = y_train.shape[1:]
 
     # Train autoencoder:
 
-    autoencoder_for_training, autoencoder_for_representation, autoencoder_for_classifier = build_autoencoder(embedding, X_train, y_shape)
+    autoencoder_for_training, autoencoder_for_representation, autoencoder_for_classifier = build_autoencoder(embedding, X_train, y_shape, code_size)
 
     if embedding:
         X_train_target = pd.concat(X_train, axis=1)
@@ -148,9 +149,8 @@ def run_model(X_train, X_test_list, y_train, y_test_list, dataset, batch_size, e
 
     return acc_train, acc_test_list, autoencoder_train, classifier_train, encoded_representation, pred_test_list
 
-def build_autoencoder(embedding, X_train, target_shape):
+def build_autoencoder(embedding, X_train, target_shape, code_size):
     hidden_size = 128
-    code_size = 2
 
     if embedding:
         input_shape = pd.concat(X_train, axis=1).shape[1:]
