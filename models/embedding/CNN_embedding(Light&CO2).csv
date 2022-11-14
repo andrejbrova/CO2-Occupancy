@@ -1,0 +1,2 @@
+,accuracy_train_mean,accuracy_train_std,accuracy_test_1_mean,accuracy_test_1_std,accuracy_test_2_mean,accuracy_test_2_std,accuracy_test_combined_mean,accuracy_test_combined_std
+CNN_embedding,0.97493553,0.0064186943,0.9778987,0.0006379078,0.9688576,0.00760771,0.97079813,0.0059898696
