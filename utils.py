@@ -15,7 +15,7 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 
-from datamodels import datamodels as dm
+import datamodels as dm
 
 DATA_DIR = ROOT_DIR + '/occupancy_data/'
 
@@ -25,13 +25,13 @@ PREDICTION_HORIZON = 1
 
 
 def load_dataset(
-        dataset='uci',  # 'uci', 'Australia', 'Denmark', 'Italy', 'Graz'
+        dataset='Denmark',  # 'uci', 'Australia', 'Denmark', 'Italy', 'Graz'
         feature_set='full',  # 'full', 'Light+CO2', 'CO2'
         historical_co2=False,
         normalize=False,
-        embedding=False,
+        embedding=True,
         shaped=False,
-        split_data=True # True, False, 'Seasonal'
+        split_data='Seasonal' # True, False, 'Seasonal'
 ):
     if embedding and shaped:
         print('Cannot use embedding on shaped dataset')
@@ -155,18 +155,61 @@ def load_dataset(
 
         if not split_data:
             return X, y
+        # THE COMMENTED CODE BELOW IS THE SEASONAL SPLIT, BASED ON DATES (SUMMER DATES FOR TEST SET, ALL OTHER FOR TRAIN SET)!
+        # elif split_data == 'Seasonal':
+        #     if dataset=='Denmark':
+        #         X_test = X.loc['6/21/2018  12:00:00 AM':'9/14/2018  11:59:00 PM', :]
+        #     elif dataset=='Italy':
+        #         X_test = X.loc['6/21/2016  12:00:00 AM':'9/21/2016  11:59:00 PM', :]
+        #     elif dataset=='Australia':
+        #         X_test = X.loc['1/23/2020  12:00:00 AM':'3/23/2020  11:55:00 PM', :]
+        #     else:
+        #         print('The dataset you chose is not one of the new datasets!')
+        #     X_train = X.drop(X_test.index)
+        #     y_train = y.drop(X_test.index)
+        #     #y_test = y.loc[y_test.index,:]
+
+        # SAME AS ABOVE (SEASONAL SPLIT), BUT SPLITTING DEPENDING ON THE TEMPERATURE (HIGHER THAN 22 DEGREES GOES TO TEST SET, LOWER/EQUAL TO 22 DEGREES GOES TO TRAIN SET)!
         elif split_data == 'Seasonal':
-            if dataset=='Denmark':
-                X_test = X.loc['6/21/2018  12:00:00 AM':'9/14/2018  11:59:00 PM', :]
-            elif dataset=='Italy':
-                X_test = X.loc['6/21/2016  12:00:00 AM':'9/21/2016  11:59:00 PM', :]
-            elif dataset=='Australia':
-                X_test = X.loc['1/23/2020  12:00:00 AM':'3/23/2020  11:55:00 PM', :]
+            t = 22.0
+            print("This is X: ")
+            print(X)
+            if dataset == 'Denmark':
+                X_test = X.loc['11/1/2018  12:00:00 AM':'2/21/2019  11:59:00 PM', :]   # till end of October? Ask Mina
+                print("This is X_test: ")
+                print(X_test)
+            elif dataset == 'Italy':
+                X_test = X[X['Temperature'] > t]
+                print("This is X_test: ")
+                print(X_test)
+            elif dataset == 'Australia':
+                X_test = X[X['Temperature'] > t].copy()
+                print("This is X_test: ")
+                print(X_test)
+                # X_train = X[X['Temperature'] <= t].copy()
+                # print("This is X_train: ")
+                # print(X_train)
+                # train_data = data[data['Temperature'] <= t]
+                # y_train = pd.DataFrame(train_data.loc[:, 'Occupancy'])
+                # print("This is y_train: ")
+                # print(y_train)
+                # # y_test = y.drop(y_train.index)
+                # test_data = data[data['Temperature'] > t]
+                # y_test = pd.DataFrame(test_data.loc[:, 'Occupancy'])
+                # print("This is y_test")
+                # print(y_test)
             else:
                 print('The dataset you chose is not one of the new datasets!')
             X_train = X.drop(X_test.index)
+            print("This is X_train: ")
+            print(X_train)
             y_train = y.drop(X_test.index)
-            y_test = y.loc[y_test.index,:]
+            print("This is y_train: ")
+            print(y_train)
+            y_test = y.drop(y_train.index)
+            print("This is y_test")
+            print(y_test)
+
         else:
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, shuffle=True)
 
