@@ -14,8 +14,10 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
+from keras.layers import Layer
+from tensorflow.keras import backend as K
 
-import datamodels as dm
+from datamodels import datamodels as dm
 
 DATA_DIR = ROOT_DIR + '/occupancy_data/'
 
@@ -418,7 +420,6 @@ def concat_tables():
             tables.append(pd.read_csv(result_table))
     pd.concat(tables, axis=0).to_csv(path + 'results.csv')
 
-
 def get_feature_list(set='full'):
     sets = {
         'full': [
@@ -441,3 +442,45 @@ def get_feature_list(set='full'):
 
 if __name__ == '__main__':
     concat_tables()
+
+class T2V(Layer):
+    """
+    Output dimension: 1 <= i <= k
+    """
+
+    def __init__(self, output_dim=None, **kwargs):
+        self.output_dim = output_dim
+        super(T2V, self).__init__(**kwargs)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "output_dim": self.output_dim,
+        })
+        return config
+        
+    def build(self, input_shape):
+        self.W = self.add_weight(name='W',
+                      shape=(input_shape[-1], self.output_dim),
+                      initializer='uniform',
+                      trainable=True)
+        self.P = self.add_weight(name='P',
+                      shape=(input_shape[1], self.output_dim),
+                      initializer='uniform',
+                      trainable=True)
+        self.w = self.add_weight(name='w',
+                      shape=(input_shape[1], 1),
+                      initializer='uniform',
+                      trainable=True)
+        self.p = self.add_weight(name='p',
+                      shape=(input_shape[1], 1),
+                      initializer='uniform',
+                      trainable=True)
+        super(T2V, self).build(input_shape)
+        
+    def call(self, x):
+        
+        original = self.w * x + self.p
+        sin_trans = K.sin(K.dot(x, self.W) + self.P)
+        
+        return K.concatenate([sin_trans, original], -1)

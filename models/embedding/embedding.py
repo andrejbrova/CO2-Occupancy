@@ -16,6 +16,7 @@ from keras.layers.embeddings import Embedding
 from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 
 from utils import load_dataset, get_embeddings, summarize_results
+from utils import T2V
 
 # References
 # https://medium.com/@jdwittenauer/deep-learning-with-keras-structured-time-series-37a66c6aeb28
@@ -23,12 +24,12 @@ from utils import load_dataset, get_embeddings, summarize_results
 
 def main():
     dataset = 'uci'
-    feature_set='CO2'
+    feature_set='full'
     historical_co2=False
     batch_size = 32
     epochs = 50
-    repeats = 10
-    model_name = 'LSTM'
+    repeats = 1
+    model_name = 'T2V'
     # shaping is not working with embedding so far
 
     models = {
@@ -36,20 +37,22 @@ def main():
         'GRU': layers_GRU,
         'LSTM': layers_LSTM,
         'SRNN': layers_SRNN,
+        'T2V': layers_T2V,
     }
 
     run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repeats, models[model_name], model_name)
 
 def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repeats, model_layers, model_name):
-    X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset(
+    X_train, X_test_list, y_train, y_test_list = load_dataset(
         dataset=dataset,
         feature_set=feature_set,
         historical_co2=historical_co2,
         normalize=True,
+        embedding=False, # Called seperately here
         shaped=False
     )
-    X_train, X_test_1, X_test_2, X_test_combined, encoders = get_embeddings(
-        X_train, X_test_1, X_test_2, X_test_combined)
+    X_train, X_test_list, encoders = get_embeddings(
+        X_train, X_test_list)
     
     models = []
     scores_train = []
@@ -59,7 +62,7 @@ def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repe
     for run in range(repeats):
         print('Run: ' + str(run + 1) + ', Dataset: ' + dataset + ', Model: ' + model_name)
         
-        acc_train, acc_test_1, acc_test_2, acc_test_combined, model = run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, batch_size, epochs, model_layers)
+        acc_train, acc_test_1, acc_test_2, acc_test_combined, model = run_model(X_train, X_test_list, y_train, y_test_list, batch_size, epochs, model_layers)
         
         models.append(model)
         scores_train.append(acc_train)
@@ -72,14 +75,18 @@ def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repe
     for cat_var in encoders.keys():
         plot_embedding(models, dataset, encoders, cat_var, scores_test_1, model_name)        
 
-def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined, batch_size, epochs, model_layers):
-    inputs, x = layers_embedding(X_train)
-    x = model_layers(x)
-    x = keras.layers.Dense(1, activation='sigmoid')(x)
+def run_model(X_train, X_test_list, y_train, y_test_list, batch_size, epochs, model_layers):
+    inputs, x_emb = layers_embedding(X_train)
+    x_t2v = model_layers(x)
+    x = keras.layers.Dense(1, activation='sigmoid')(x_t2v)
 
     model = Model(inputs=inputs, outputs=x)
+    model_emb = Model(inputs=inputs, outputs=x_emb)
+    model_t2v = Model(inputs=inputs, outputs=x_t2v)
 
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics='binary_accuracy')
+    model_emb.compile(loss='mse', optimizer=Adam(), metrics='mse')
+    model_t2v.compile(loss='mse', optimizer=Adam(), metrics='mse')
     print(model.summary())
 
     callbacks_list = [
@@ -100,16 +107,16 @@ def run_model(X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y
     )
     
     y_pred_train = model.predict(X_train)
-    y_pred_test_1 = model.predict(X_test_1)
-    y_pred_test_2 = model.predict(X_test_2)
-    y_pred_test_combined = model.predict(X_test_combined)
+    y_pred_test_list = []
+    for X_test in X_test_list:
+        y_pred_test_list.append(model.predict(X_test))
 
     acc_train = BinaryAccuracy()(y_train, y_pred_train)
-    acc_test_1 = BinaryAccuracy()(y_test_1, y_pred_test_1)
-    acc_test_2 = BinaryAccuracy()(y_test_2, y_pred_test_2)
-    acc_test_combined = BinaryAccuracy()(y_test_combined, y_pred_test_combined)
+    acc_test_list = []
+    for y_test, y_pred_test in zip(y_test_list, y_pred_test_list):
+        acc_test_list.append(BinaryAccuracy()(y_test, y_pred_test))
 
-    return acc_train, acc_test_1, acc_test_2, acc_test_combined, model
+    return acc_train, acc_test_list[0], acc_test_list[1], acc_test_list[2], model # TODO change
 
 def plot_embedding(models, dataset, encoders, category, scores_test_1, model_name):
     # Find best and worst model
@@ -236,6 +243,10 @@ def layers_SRNN(x): # TODO: Sequence required?
     #x = keras.layers.SimpleRNN(units=64)(x),
     x = keras.layers.Dense(units=hidden_layer_size, activation='relu')(x),
 
+    return x
+
+def layers_T2V(x):
+    x = T2V(64)(x)
     return x
 
 if __name__ == '__main__':
