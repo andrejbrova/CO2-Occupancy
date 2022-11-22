@@ -19,7 +19,8 @@ from sklearn.svm import SVC
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import set_random_seed
 
-from utils import load_dataset, summarize_results
+from get_data import load_dataset
+from utils import summarize_results
 from models.embedding.embedding import layers_embedding
 
 # References:

@@ -15,7 +15,8 @@ from keras.layers import Dropout, Dense, Input, Reshape
 from keras.layers.embeddings import Embedding
 from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 
-from utils import load_dataset, get_embeddings, summarize_results
+from get_data import load_dataset, get_embeddings, get_embeddings_shaped
+from utils import summarize_results
 from utils import T2V
 
 # References
@@ -27,32 +28,30 @@ def main():
     feature_set='full'
     historical_co2=False
     batch_size = 32
-    epochs = 50
+    epochs = 5
     repeats = 1
     model_name = 'T2V'
-    # shaping is not working with embedding so far
+    shaping = True
 
     models = {
         'CNN': layers_CNN,
         'GRU': layers_GRU,
         'LSTM': layers_LSTM,
         'SRNN': layers_SRNN,
-        'T2V': layers_T2V,
+        'T2V': layers_T2V, # TODO: Needs to be trained on result
     }
 
-    run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repeats, models[model_name], model_name)
+    run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repeats, models[model_name], model_name, shaping)
 
-def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repeats, model_layers, model_name):
-    X_train, X_test_list, y_train, y_test_list = load_dataset(
+def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repeats, model_layers, model_name, shaping):
+    X_train, X_test_list, y_train, y_test_list, encoders = load_dataset(
         dataset=dataset,
         feature_set=feature_set,
         historical_co2=historical_co2,
         normalize=True,
-        embedding=False, # Called seperately here
-        shaped=False
+        embedding=True,
+        shaped=shaping
     )
-    X_train, X_test_list, encoders = get_embeddings(
-        X_train, X_test_list)
     
     models = []
     scores_train = []
@@ -62,7 +61,7 @@ def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repe
     for run in range(repeats):
         print('Run: ' + str(run + 1) + ', Dataset: ' + dataset + ', Model: ' + model_name)
         
-        acc_train, acc_test_1, acc_test_2, acc_test_combined, model = run_model(X_train, X_test_list, y_train, y_test_list, batch_size, epochs, model_layers)
+        acc_train, acc_test_1, acc_test_2, acc_test_combined, model = run_model(X_train, X_test_list, y_train, y_test_list, batch_size, epochs, model_layers, encoders)
         
         models.append(model)
         scores_train.append(acc_train)
@@ -75,9 +74,9 @@ def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repe
     for cat_var in encoders.keys():
         plot_embedding(models, dataset, encoders, cat_var, scores_test_1, model_name)        
 
-def run_model(X_train, X_test_list, y_train, y_test_list, batch_size, epochs, model_layers):
-    inputs, x_emb = layers_embedding(X_train)
-    x_t2v = model_layers(x)
+def run_model(X_train, X_test_list, y_train, y_test_list, batch_size, epochs, model_layers, encoders):
+    inputs, x_emb = layers_embedding(X_train, encoders)
+    x_t2v = model_layers(x_emb)
     x = keras.layers.Dense(1, activation='sigmoid')(x_t2v)
 
     model = Model(inputs=inputs, outputs=x)
@@ -85,8 +84,8 @@ def run_model(X_train, X_test_list, y_train, y_test_list, batch_size, epochs, mo
     model_t2v = Model(inputs=inputs, outputs=x_t2v)
 
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics='binary_accuracy')
-    model_emb.compile(loss='mse', optimizer=Adam(), metrics='mse')
-    model_t2v.compile(loss='mse', optimizer=Adam(), metrics='mse')
+    model_emb.compile(loss='mse', optimizer='adam', metrics='mse')
+    model_t2v.compile(loss='mse', optimizer='adam', metrics='mse')
     print(model.summary())
 
     callbacks_list = [
@@ -162,35 +161,44 @@ def plot_embedding(models, dataset, encoders, category, scores_test_1, model_nam
 
 # Layers
 
-def layers_embedding(X_train):
-    input_shape = (1,)
+def layers_embedding(X_train, encoders):
+    input_shape = X_train[0].shape[1:]
+    #input_shape[-1] += len(X_train) - 1
+    #input_shape = tuple(input_shape)
+    cat_vars = encoders.keys()
 
-    cat_vars = []
-    for x in X_train[0:-1]:
-        cat_vars.append(x.name)
-    cont_vars = X_train[-1].columns
+    #cat_vars = []
+    #for x in X_train[0:-1]:
+    #    cat_vars.append(x.name)
+    #cont_vars = X_train[-1].columns
 
     # Vector sizes
-    cat_sizes = [(c, len(X_train[i].cat.categories)) for i, c in enumerate(cat_vars)]
+    cat_sizes = [(c, len(encoders['DayOfWeek'].classes_)) for i, c in enumerate(cat_vars)]
     embedding_sizes = [(c, min(50, (c + 1) // 2)) for _, c in cat_sizes]
 
     inputs = []
     embed_layers = []
     for (c, (in_size, out_size)) in zip(cat_vars, embedding_sizes):
+        reshape = list(input_shape)
+        reshape[-1] = out_size
+        reshape = tuple(reshape)
         i = Input(shape=input_shape)
         o = Embedding(in_size, out_size, name=c)(i)
-        o = Reshape(target_shape=(out_size,))(o)
+        o = Reshape(target_shape=reshape)(o)
         inputs.append(i)
         embed_layers.append(o)
 
     embed = Concatenate(axis=-1)(embed_layers)
     embed = Dropout(0.04)(embed)
 
-    cont_input = Input(shape=(len(cont_vars),))
+    cont_input_shape = X_train[-1].shape[1:]
+    cont_input = Input(shape=cont_input_shape)
     inputs.append(cont_input)
 
-    x = Concatenate()([embed, cont_input])
-    concat_shape = (embed.shape[1] + cont_input.shape[1], 1)
+    x = Concatenate(axis=-1)([embed, cont_input])
+    concat_shape = embed.shape[1:].as_list()
+    concat_shape[-1] += cont_input.shape[-1]
+    #concat_shape.append(1)
     x = keras.layers.Reshape(concat_shape)(x)
 
     return inputs, x

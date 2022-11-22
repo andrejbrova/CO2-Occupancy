@@ -13,7 +13,8 @@ from keras.layers import Activation
 from keras.layers import Dropout, Dense, Input
 from keras.layers.embeddings import Embedding
 
-from utils import load_dataset, summarize_results
+from get_data import load_dataset
+from utils import summarize_results
 from datamodels import datamodels as dm
 
 # References
