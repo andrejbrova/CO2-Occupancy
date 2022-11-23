@@ -27,9 +27,6 @@ def load_dataset(
         shaped=False,
         split_data='Seasonal' # True, False, 'Seasonal'
 ):
-    if embedding and shaped:
-        print('Cannot use embedding on shaped dataset')
-        #exit()
 
     features = get_feature_list(feature_set)
 
@@ -177,13 +174,8 @@ def load_dataset(
         data.loc[:,'DayOfWeek'] = data.index.dayofweek
         data.loc[:,'WeekOfYear'] = data.index.isocalendar().week
 
-    columns = X_train.columns.tolist()
-
     encoders = None
     if embedding:
-        #if shaped:
-        #   X_train, X_test_list, encoders = get_embeddings_shaped(X_train, X_test_list, columns)
-        #else:
         X_train, X_test_list, encoders = get_embeddings(X_train, X_test_list)
 
     if shaped:
@@ -191,21 +183,21 @@ def load_dataset(
             y_test_list_temp = [None] * len(y_test_list)
             for emb in range(len(X_train)):
                 X_train[emb], y_train_temp = dm.processing.shape.get_windows(
-                    LOOKBACK_HORIZON, X_train[emb].to_numpy(), PREDICTION_HORIZON, y_train.to_numpy()
+                    LOOKBACK_HORIZON, X_train[emb].to_numpy(dtype='float32'), PREDICTION_HORIZON, y_train.to_numpy(dtype='float32')
                 )
                 for it, (X_test, y_test) in enumerate(zip(X_test_list, y_test_list)):
                     X_test_list[it][emb], y_test_list_temp[it] = dm.processing.shape.get_windows(
-                        LOOKBACK_HORIZON, X_test[emb].to_numpy(), PREDICTION_HORIZON, y_test.to_numpy(),
+                        LOOKBACK_HORIZON, X_test[emb].to_numpy(dtype='float32'), PREDICTION_HORIZON, y_test.to_numpy(dtype='float32'),
                     )
             y_train = y_train_temp
             y_test_list = y_test_list_temp
         else:
             X_train, y_train = dm.processing.shape.get_windows(
-                LOOKBACK_HORIZON, X_train.to_numpy(), PREDICTION_HORIZON, y_train.to_numpy()
+                LOOKBACK_HORIZON, X_train.to_numpy(dtype='float32'), PREDICTION_HORIZON, y_train.to_numpy(dtype='float32')
             )
             for it, (X_test, y_test) in enumerate(zip(X_test_list, y_test_list)):
                 X_test_list[it], y_test_list[it] = dm.processing.shape.get_windows(
-                    LOOKBACK_HORIZON, X_test.to_numpy(), PREDICTION_HORIZON, y_test.to_numpy(),
+                    LOOKBACK_HORIZON, X_test.to_numpy(dtype='float32'), PREDICTION_HORIZON, y_test.to_numpy(dtype='float32'),
                 )
 
     return X_train, X_test_list, y_train, y_test_list, encoders

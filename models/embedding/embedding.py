@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).parents[2]
 sys.path.append(str(ROOT_DIR))
 
+import numpy as np
 from matplotlib import pyplot as plt
 from tensorflow import keras
 from keras import layers
@@ -30,7 +31,7 @@ def main():
     batch_size = 32
     epochs = 5
     repeats = 1
-    model_name = 'T2V'
+    model_name = 'LSTM'
     shaping = True
 
     models = {
@@ -76,16 +77,17 @@ def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repe
 
 def run_model(X_train, X_test_list, y_train, y_test_list, batch_size, epochs, model_layers, encoders):
     inputs, x_emb = layers_embedding(X_train, encoders)
-    x_t2v = model_layers(x_emb)
-    x = keras.layers.Dense(1, activation='sigmoid')(x_t2v)
+    x_t2v = layers_T2V(x_emb)
+    x = model_layers(x_t2v)
+    x = keras.layers.Dense(1, activation='sigmoid')(x)
 
     model = Model(inputs=inputs, outputs=x)
-    model_emb = Model(inputs=inputs, outputs=x_emb)
-    model_t2v = Model(inputs=inputs, outputs=x_t2v)
+    #model_emb = Model(inputs=inputs, outputs=x_emb)
+    #model_t2v = Model(inputs=inputs, outputs=x_t2v)
 
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics='binary_accuracy')
-    model_emb.compile(loss='mse', optimizer='adam', metrics='mse')
-    model_t2v.compile(loss='mse', optimizer='adam', metrics='mse')
+    #model_emb.compile(loss='mse', optimizer='adam', metrics='mse')
+    #model_t2v.compile(loss='mse', optimizer='adam', metrics='mse')
     print(model.summary())
 
     callbacks_list = [
@@ -96,7 +98,9 @@ def run_model(X_train, X_test_list, y_train, y_test_list, batch_size, epochs, mo
                             save_best_only=True),
         keras.callbacks.EarlyStopping(monitor='val_binary_accuracy', patience=10)
     ]
-
+    #X_train[0] = np.asarray(X_train[0]).astype('float32')
+    #X_train[1] = np.asarray(X_train[1]).astype('float32')
+    #y_train = np.asarray(y_train).astype('float32')
     model.fit(
         X_train, y_train,
         epochs=epochs,

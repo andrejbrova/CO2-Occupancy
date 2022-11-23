@@ -15,17 +15,33 @@ from scipy.stats import normaltest
 import seaborn as sn
 import pickle as pkl
 
-from utils import load_dataset, load_dataset_graz, get_feature_list
+from get_data import load_dataset, load_dataset_uci, load_dataset_graz, get_feature_list
 
 
 def main():
-    dataset = 'Graz'
+    dataset_name = 'uci'
 
+    describe_dataset(dataset_name)
     #plot_correlation()
-    plot_timeline(dataset)
-    #plot_correlation_matrix(dataset)
-    #plot_hourly_distributions(dataset)
+    #plot_timeline(dataset_name)
+    #plot_correlation_matrix(dataset_name)
+    #plot_hourly_distributions(dataset_name)
     #dataset_validation()
+
+def describe_dataset(dataset_name):
+    """X, y = load_dataset(
+        dataset=dataset_name,
+        feature_set='full',
+        historical_co2=False,
+        normalize=False,
+        embedding=False,
+        shaped=False,
+        split_data=False
+        )"""
+    training, test1, test2 = load_dataset_uci()
+
+    training.describe()
+    test1.describe()
 
 def plot_correlation():
     X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset()
