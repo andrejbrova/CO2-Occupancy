@@ -21,9 +21,9 @@ from get_data import load_dataset, load_dataset_uci, load_dataset_graz, get_feat
 def main():
     dataset_name = 'uci'
 
-    describe_dataset(dataset_name)
+    #describe_dataset(dataset_name)
     #plot_correlation()
-    #plot_timeline(dataset_name)
+    plot_timeline(dataset_name)
     #plot_correlation_matrix(dataset_name)
     #plot_hourly_distributions(dataset_name)
     #dataset_validation()
@@ -40,8 +40,23 @@ def describe_dataset(dataset_name):
         )"""
     training, test1, test2 = load_dataset_uci()
 
-    training.describe()
-    test1.describe()
+    for dataset in [training, test1, test2]:
+        occupancy_count = dataset['Occupancy'].value_counts()
+        dataset_properties = pd.DataFrame(data={
+            'number rows': [dataset.shape[0]],
+            'number occupancies': [occupancy_count[1]],
+            'number non-occupancies': [occupancy_count[0]],
+            'share occupancies': [round((occupancy_count[1] / np.sum(occupancy_count)) * 100, 1)],
+            'rows with nodata values': [len(dataset[dataset.isna().any(axis=1)])],
+            'temporal resolution': ['?'],
+            'date from': [dataset.index.min()],
+            'date to': [dataset.index.max()]
+
+        }).T
+        print(dataset_properties)
+
+        descriptive_stats = dataset.describe()
+        print(descriptive_stats)
 
 def plot_correlation():
     X_train, X_test_1, X_test_2, X_test_combined, y_train, y_test_1, y_test_2, y_test_combined = load_dataset()
@@ -65,9 +80,13 @@ def plot_correlation():
     plt.show()
 
 def plot_timeline(dataset):
-    if dataset != 'Graz':
-        raise Exception('This function only works with Graz dataset so far!')
+    """
+    Plots the features of a dataset with time on the x axis and the feature values on the y axis
+    """
+    #if dataset != 'Graz':
+     #   raise Exception('This function only works with Graz dataset so far!')
 
+    lim = False
     date = pd.Timestamp('2022-07-26')
     n_days = 7
 
@@ -81,28 +100,42 @@ def plot_timeline(dataset):
         split_data=False
         )
 
-    features = [
-        'CO2',
-        'Humidity',
-        'Temperature'
-    ]
+    if dataset == 'Graz':
+        features = [
+            'CO2',
+            'Humidity',
+            'Temperature'
+        ]
 
-    fig, ax = plt.subplots(len(features), 1, figsize=(6, 3*len(features)))
+        fig, ax = plt.subplots(len(features), 1, figsize=(6, 3*len(features)))
 
-    for row, column in enumerate(features):
-        ax[row].set_title(column)
-        X[column + ' (WL)'].plot(ax=ax[row], color='red', label='Window Left', xlabel=None)
-        X[column + ' (WM)'].plot(ax=ax[row], color='blue', label='Window Middle', xlabel=None)
-        X[column + ' (WR)'].plot(ax=ax[row], color='green', label='Window Right', xlabel=None)
-        ax[row].set_ylabel('Feature value')
-        ax[row].set_xlim(left=date, right=date + pd.DateOffset(days=7))
-        ax[row].legend()
+        for row, column in enumerate(features):
+            ax[row].set_title(column)
+            X[column + ' (WL)'].plot(ax=ax[row], color='red', label='Window Left', xlabel=None)
+            X[column + ' (WM)'].plot(ax=ax[row], color='blue', label='Window Middle', xlabel=None)
+            X[column + ' (WR)'].plot(ax=ax[row], color='green', label='Window Right', xlabel=None)
+            ax[row].set_ylabel('Feature value')
+            if lim:
+                ax[row].set_xlim(left=date, right=date + pd.DateOffset(days=7))
+            ax[row].legend()
+    
+    else:
+        number_columns = len(X.columns)
+        fig, ax = plt.subplots(number_columns, 1, figsize=(6, 3*number_columns))
+
+        for row, column in enumerate(X.columns):
+            ax[row].set_title(column)
+            X[column].plot(ax=ax[row], label=column, xlabel=None)
+            ax[row].set_ylabel('Feature value')
+            if lim:
+                ax[row].set_xlim(left=date, right=date + pd.DateOffset(days=7))
+            ax[row].legend()
 
     plt.setp(ax[-1], xlabel='Date')
     plt.suptitle(dataset + ' timelines')
     plt.tight_layout()
 
-    pkl.dump((fig, ax), open(ANALYSIS_DIR + 'Timelines/' + dataset + '.pickle', 'wb'))
+    #pkl.dump((fig, ax), open(ANALYSIS_DIR + 'Timelines/' + dataset + '.pickle', 'wb'))
     #plt.savefig(ANALYSIS_DIR + 'Timelines/' + dataset + '.png')
     plt.show()
     plt.clf()

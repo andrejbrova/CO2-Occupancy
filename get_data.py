@@ -46,6 +46,13 @@ def load_dataset(
             test2['CO2+shift'] = test2.loc[:, 'CO2'].shift(shift)
             test2 = test2.dropna()
 
+        if not split_data:
+            data = pd.concat([training, test1, test2], axis='rows').sort_index()
+            X = data.loc[:, data.columns.intersection(features)]
+            y = pd.DataFrame(data.loc[:, 'Occupancy'])
+
+            return X, y
+
         X_train = training.loc[:, features]
         y_train = pd.DataFrame(training.loc[:, 'Occupancy'])
 
