@@ -11,6 +11,7 @@ import pandera as pa
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import cm
+from matplotlib.colors import ListedColormap
 from scipy.stats import normaltest
 import seaborn as sn
 import pickle as pkl
@@ -117,26 +118,42 @@ def plot_timeline(dataset):
             ax[row].set_ylabel('Feature value')
             if lim:
                 ax[row].set_xlim(left=date, right=date + pd.DateOffset(days=7))
+            ax[row].grid()
             ax[row].legend()
     
     else:
         number_columns = len(X.columns)
-        fig, ax = plt.subplots(number_columns, 1, figsize=(6, 3*number_columns))
+        fig, ax = plt.subplots(number_columns, 1, figsize=(6, 2*number_columns), sharex=True)
+        fig.subplots_adjust(top=0.9)
+        fig.add_gridspec(3, hspace=5)
 
         for row, column in enumerate(X.columns):
             ax[row].set_title(column)
             X[column].plot(ax=ax[row], label=column, xlabel=None)
+            ax[row].set_xlabel('Date')
             ax[row].set_ylabel('Feature value')
             if lim:
                 ax[row].set_xlim(left=date, right=date + pd.DateOffset(days=7))
-            ax[row].legend()
+            ax[row].grid()
+            ax[row].label_outer()
 
-    plt.setp(ax[-1], xlabel='Date')
-    plt.suptitle(dataset + ' timelines')
+            start_time = None
+            end_time = None
+            for timestamp in y.index:
+                if not start_time and y.loc[timestamp].values[0] == 1:
+                    start_time = timestamp
+                elif start_time and y.loc[timestamp].values[0] == 0:
+                    end_time = timestamp
+                if start_time and end_time:
+                    ax[row].axvspan(start_time, end_time, facecolor='lightblue', alpha=0.7)
+                    start_time=None
+                    end_time=None
+
+    plt.suptitle(dataset + ' Timelines')
     plt.tight_layout()
 
-    #pkl.dump((fig, ax), open(ANALYSIS_DIR + 'Timelines/' + dataset + '.pickle', 'wb'))
-    #plt.savefig(ANALYSIS_DIR + 'Timelines/' + dataset + '.png')
+    pkl.dump((fig, ax), open(ANALYSIS_DIR + 'Timelines/' + dataset + '.pickle', 'wb'))
+    plt.savefig(ANALYSIS_DIR + 'Timelines/' + dataset + '.png')
     plt.show()
     plt.clf()
 

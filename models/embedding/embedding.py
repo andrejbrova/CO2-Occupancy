@@ -32,7 +32,7 @@ def main():
     epochs = 5
     repeats = 1
     model_name = 'LSTM'
-    shaping = True
+    shaping = False
 
     models = {
         'CNN': layers_CNN,
@@ -77,8 +77,7 @@ def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repe
 
 def run_model(X_train, X_test_list, y_train, y_test_list, batch_size, epochs, model_layers, encoders):
     inputs, x_emb = layers_embedding(X_train, encoders)
-    x_t2v = layers_T2V(x_emb)
-    x = model_layers(x_t2v)
+    x = model_layers(x_emb)
     x = keras.layers.Dense(1, activation='sigmoid')(x)
 
     model = Model(inputs=inputs, outputs=x)
@@ -204,6 +203,9 @@ def layers_embedding(X_train, encoders):
     concat_shape[-1] += cont_input.shape[-1]
     #concat_shape.append(1)
     x = keras.layers.Reshape(concat_shape)(x)
+
+    # Time2Vec
+    x = layers_T2V(x)
 
     return inputs, x
 

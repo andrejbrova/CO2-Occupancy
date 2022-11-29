@@ -179,7 +179,7 @@ def load_dataset(
     for data in [X_train] + X_test_list:
         data.loc[:,'MinuteOfDay'] = data.index.hour * 60 + data.index.minute
         data.loc[:,'DayOfWeek'] = data.index.dayofweek
-        data.loc[:,'WeekOfYear'] = data.index.isocalendar().week
+        data.loc[:,'WeekOfYear'] = data.index.isocalendar().week.astype(int)
 
     encoders = None
     if embedding:
@@ -217,6 +217,10 @@ def load_dataset_uci():
     training = training.set_index('date')
     test1 = test1.set_index('date')
     test2 = test2.set_index('date')
+
+    faulty = {
+        'light': [slice("2015-02-07 09:42:00", "2015-02-07 09:42:59")]
+    }
 
     return training, test1, test2
 
@@ -324,7 +328,7 @@ def get_embeddings(X, X_test_list):
             X_test.loc[:, v] = le.transform(X_test[v].values)
         print('{0}: {1}'.format(v, le.classes_))
 
-    # Normalizing - Saves storage space
+    # Normalizing - Saves storage space / Not working?
     for v in cat_vars:
         X[v] = X[v].astype('category').cat.as_ordered()
         for X_test in X_test_list:
