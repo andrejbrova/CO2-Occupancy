@@ -33,22 +33,35 @@ from models.embedding.embedding import layers_embedding
 # https://www.geeksforgeeks.org/ml-classifying-data-using-an-auto-encoder/
 
 
-def main():
-    dataset = 'uci'
-    batch_size = 16 # 64
-    epochs = 30
-    repeats = 10
-    historical_co2 = False
-    embedding = True
-    feature_set = 'Light+CO2'
-    name = 'autoencoder'
-    shaped = True
-    split_data = True
+def run(
+    parameters={
+        'model_name': 'autoencoder',
+        'dataset': 'uci',
+        'feature_set': 'Light+CO2',
+        'split_data': True,
+        'epochs': 30,
+        'historical_co2': False,
+        'embedding': True,
+        'windowing': True,
+        'runs': 10,
+        'batch_size': 16,
+        'code_size': 2 # 2 for plotting, 6 for brick dataset
+        }
+    ):
+
+    name=parameters['model_name']
+    dataset = parameters['dataset']
     plot_representation = True
-    code_size = 2 # 2 for plotting, 6 for brick dataset
 
-
-    X_train, X_test_list, y_train, y_test_list, encoders = load_dataset(dataset=dataset, feature_set=feature_set, normalize=True, embedding=embedding, historical_co2=historical_co2, shaped=shaped)
+    X_train, X_test_list, y_train, y_test_list, encoders = load_dataset(
+        dataset=dataset,
+        feature_set=parameters['feature_set'],
+        normalize=True,
+        embedding=parameters['embedding'],
+        historical_co2=parameters['historical_co2'],
+        shaped=parameters['windowing'],
+        split_data=parameters['split_data']
+    )
 
     scores_train = []
     scores_test_list = []
@@ -56,11 +69,21 @@ def main():
     classifiers_train = []
     encoded_representations = []
     predictions_list = []
-    for run in range(repeats):
+    for run in range(parameters['runs']):
         print('Run: ' + str(run + 1) + ', Dataset: ' + dataset + ', Model: ' + name)
         set_random_seed(run)
         acc_train, acc_test_list, autoencoder_train, classifier_train, encoded_representation, y_pred_test_list = run_model(
-            X_train, X_test_list, y_train, y_test_list, dataset, batch_size, epochs, embedding, historical_co2, feature_set, code_size, encoders, name)
+            X_train, X_test_list, y_train, y_test_list,
+            dataset,
+            batch_size=parameters['batch_size'],
+            epochs=parameters['epochs'],
+            embedding=parameters['embedding'],
+            historical_co2=parameters['historical_co2'],
+            feature_set=parameters['feature_set'],
+            code_size=parameters['code_size'],
+            encoders=encoders,
+            name=parameters['model_name']
+        )
         scores_train.append(acc_train)
         scores_test_list.append(acc_test_list)
         autoencoders_train.append(autoencoder_train)
@@ -76,9 +99,20 @@ def main():
         plot_autoencoder(encoded_representations[max_value_index], predictions_list[max_value_index], y_test_list, scores_test, name)
         loss_plot(autoencoders_train[max_value_index], name)
         acc_plot(classifiers_train[max_value_index], name)
-        plot_densities(dataset, feature_set, historical_co2, predictions_list[max_value_index], name)
+        plot_densities(dataset, feature_set=parameters['feature_set'], historical_co2=parameters['historical_co2'], y_pred_test_list=predictions_list[max_value_index], model_name=parameters['model_name'])
 
-    summarize_results(scores_train, scores_test_list, name, dataset, batch_size, epochs, repeats, embedding, feature_set, historical_co2)#, suffix='_+'+str(historical_co2)+'min')
+    summarize_results(
+        scores_train,
+        scores_test_list,
+        name,
+        dataset,
+        batch_size=parameters['batch_size'],
+        epochs=parameters['epochs'],
+        repeats=parameters['runs'],
+        embedding=parameters['embedding'],
+        feature_set=parameters['feature_set'],
+        historical_co2=parameters['historical_co2']
+    )#, suffix='_+'+str(historical_co2)+'min')
 
 def run_model(X_train, X_test_list, y_train, y_test_list, dataset, batch_size, epochs, embedding, historical_co2, feature_set, code_size, encoders, name):
     y_shape = y_train.shape[1:]
@@ -242,7 +276,10 @@ def plot_autoencoder(encoded_representations, y_pred_list, y_test_list, scores_t
     names = ['1', '2']
 
     for y, y_pred, name, encoded_representation in zip(y_test_list, y_pred_list, names, encoded_representations):
-        y = y.to_numpy()[:,0]
+        if type(y) != np.ndarray: # TODO why necessary?
+            y = y.to_numpy()[:,0]
+        else:
+            y = y[:,0,0]
         y_pred = y_pred[:,0].round()
 
         plt.figure(figsize=(12, 8))
@@ -293,7 +330,7 @@ def plot_autoencoder(encoded_representations, y_pred_list, y_test_list, scores_t
         #plt.show()
 
 def plot_densities(dataset, feature_set, historical_co2, y_pred_test_list, model_name):
-    X_train, X_test_list, y_train, y_test_list = load_dataset(dataset=dataset, feature_set=feature_set, normalize=False, embedding=False, historical_co2=historical_co2, shaped=False)
+    X_train, X_test_list, y_train, y_test_list, _ = load_dataset(dataset=dataset, feature_set=feature_set, normalize=False, embedding=False, historical_co2=historical_co2, shaped=False)
     conditions = [(1,1), (1,0), (0,0), (0,1)]
     condition_names = ['True Occupant', 'False Non-Occupant', 'True Non-Occupant', 'False Occupant']
     export_suffix = ['TP', 'FN', 'TN', 'FP']
@@ -332,4 +369,4 @@ def plot_densities(dataset, feature_set, historical_co2, y_pred_test_list, model
     #plt.show()
 
 if __name__ == '__main__':
-    main()
+    run()

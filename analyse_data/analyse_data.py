@@ -16,32 +16,37 @@ from scipy.stats import normaltest
 import seaborn as sn
 import pickle as pkl
 
-from get_data import load_dataset, load_dataset_uci, load_dataset_graz, get_feature_list
+from get_data import load_dataset, load_dataset_uci, load_dataset_brick, load_dataset_graz, get_feature_list
 
 
 def main():
-    dataset_name = 'uci'
+    dataset_name = 'Australia'
 
-    #describe_dataset(dataset_name)
+    describe_dataset(dataset_name)
     #plot_correlation()
-    plot_timeline(dataset_name)
+    #plot_timeline(dataset_name, data_cleaning=False)
     #plot_correlation_matrix(dataset_name)
     #plot_hourly_distributions(dataset_name)
     #dataset_validation()
 
 def describe_dataset(dataset_name):
-    """X, y = load_dataset(
-        dataset=dataset_name,
-        feature_set='full',
-        historical_co2=False,
-        normalize=False,
-        embedding=False,
-        shaped=False,
-        split_data=False
-        )"""
-    training, test1, test2 = load_dataset_uci()
+    if dataset_name == 'uci':
+        datasets = load_dataset_uci()
+    elif dataset_name in ['Denmark', 'Australia', 'Italy']:
+        dataset = load_dataset_brick(dataset_name)
+        datasets = [dataset]
+    else:
+        X, y = load_dataset(
+            dataset=dataset_name,
+            feature_set='full',
+            historical_co2=False,
+            normalize=False,
+            embedding=False,
+            shaped=False,
+            split_data=False
+        )
 
-    for dataset in [training, test1, test2]:
+    for dataset in datasets:
         occupancy_count = dataset['Occupancy'].value_counts()
         dataset_properties = pd.DataFrame(data={
             'number rows': [dataset.shape[0]],
@@ -80,7 +85,7 @@ def plot_correlation():
     plt.savefig(ROOT_DIR + '/correlation_light_temp.png')
     plt.show()
 
-def plot_timeline(dataset):
+def plot_timeline(dataset, data_cleaning=True):
     """
     Plots the features of a dataset with time on the x axis and the feature values on the y axis
     """
@@ -98,7 +103,8 @@ def plot_timeline(dataset):
         normalize=False,
         embedding=False,
         shaped=False,
-        split_data=False
+        split_data=False,
+        data_cleaning=data_cleaning
         )
 
     if dataset == 'Graz':

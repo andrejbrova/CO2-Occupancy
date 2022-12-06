@@ -25,13 +25,14 @@ def load_dataset(
         normalize=False,
         embedding=True,
         shaped=False,
-        split_data='Seasonal' # True, False, 'Seasonal'
+        split_data='Seasonal', # True, False, 'Seasonal'
+        data_cleaning=True
 ):
 
     features = get_feature_list(feature_set)
 
     if dataset == 'uci':
-        training, test1, test2 = load_dataset_uci()
+        training, test1, test2 = load_dataset_uci(data_cleaning)
 
         if historical_co2:
             if isinstance(historical_co2, int):
@@ -209,7 +210,12 @@ def load_dataset(
 
     return X_train, X_test_list, y_train, y_test_list, encoders
 
-def load_dataset_uci():
+def load_dataset_uci(data_cleaning=True):
+    """
+    Loading and preparing the uci dataset.
+    If data cleaning is true, faulty data points will be interpolated linearly.
+    """
+
     training = pd.read_csv(ROOT_DIR + '/occupancy_data/datatraining.txt', parse_dates=['date'])
     test1 = pd.read_csv(ROOT_DIR + '/occupancy_data/datatest.txt', parse_dates=['date'])
     test2 = pd.read_csv(ROOT_DIR + '/occupancy_data/datatest2.txt', parse_dates=['date'])
@@ -218,9 +224,29 @@ def load_dataset_uci():
     test1 = test1.set_index('date')
     test2 = test2.set_index('date')
 
-    faulty = {
-        'light': [slice("2015-02-07 09:42:00", "2015-02-07 09:42:59")]
-    }
+    if data_cleaning:
+        faulty = {
+            'Light': [
+                slice("2015-02-04 09:40:00", "2015-02-04 09:42:00"),
+                slice("2015-02-07 09:40:59", "2015-02-07 09:43:59"),
+                slice("2015-02-12 09:45:00", "2015-02-12 09:49:00"),
+                slice("2015-02-13 09:49:00", "2015-02-13 09:49:00"),
+            ],
+            'CO2': [
+                slice("2015-02-09 22:10:00", "2015-02-09 22:14:00"),
+                slice("2015-02-11 18:51:00", "2015-02-11 18:53:00"),
+                slice("2015-02-12 03:40:59", "2015-02-12 03:46:00"),
+                slice("2015-02-16 01:34:00", "2015-02-16 01:40:59"),
+            ]
+        }
+
+        # Data cleaning
+        dataset_list = [training, test1, test2]
+        for it in range(len(dataset_list)):
+            for feature in faulty.keys():
+                for time_window in faulty[feature]:
+                    dataset_list[it].loc[time_window, feature] = np.nan
+            dataset_list[it].update(dataset_list[it].interpolate(method='linear', axis='index'))
 
     return training, test1, test2
 
