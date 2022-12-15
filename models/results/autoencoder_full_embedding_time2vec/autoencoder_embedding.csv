@@ -1,0 +1,2 @@
+,batch size,epochs,repeats,embedding,feature set,historical co2,accuracy_train_mean,accuracy_train_std,accuracy_test_1_mean,accuracy_test_1_std,accuracy_test_2_mean,accuracy_test_2_std,accuracy_test_combined_mean,accuracy_test_combined_std
+autoencoder,16,30,10,True,full,False,0.91123056,0.052140474,0.88642967,0.09237193,0.9506648,0.053391315,0.93613356,0.061210427

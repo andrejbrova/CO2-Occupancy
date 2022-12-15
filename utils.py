@@ -18,34 +18,27 @@ from tensorflow.keras import backend as K
 def summarize_results(
         scores_train,
         scores_test_list,
-        model_name='?',
-        dataset='?',
-        batch_size='?',
-        epochs='?',
-        repeats='?',
-        embedding='?',
-        feature_set='?',
-        historical_co2='?',
+        parameters,
         suffix=''
 ):
     result = {
-        'batch size': batch_size,
-        'epochs': epochs,
-        'repeats': repeats,
-        'embedding': embedding,
-        'feature set': feature_set,
-        'historical co2': historical_co2,
+        'batch size': parameters['batch_size'],
+        'epochs': parameters['epochs'],
+        'repeats': parameters['runs'],
+        'embedding': parameters['embedding'],
+        'feature set': parameters['feature_set'],
+        'historical co2': parameters['historical_co2'],
         'accuracy_train_mean': np.mean(scores_train),
         'accuracy_train_std': np.std(scores_train),
         'accuracy_test_1_mean': np.mean([sublist[0] for sublist in scores_test_list]),
         'accuracy_test_1_std': np.std([sublist[0] for sublist in scores_test_list]),
     }
 
-    if feature_set != '?' and feature_set != 'full':
-        suffix += '_' + feature_set
-    if embedding != '?' and embedding != False:
+    if parameters['feature_set'] != '?' and parameters['feature_set'] != 'full':
+        suffix += '_' + parameters['feature_set']
+    if parameters['embedding'] != '?' and parameters['embedding'] != False:
         suffix += '_embedding'
-    if dataset == '?' or dataset == 'uci':
+    if parameters['dataset'] == '?' or parameters['dataset'] == 'uci':
         result.update({  # Add evaluation for second and combined test set
             'accuracy_test_2_mean': np.mean([sublist[1] for sublist in scores_test_list]),
             'accuracy_test_2_std': np.std([sublist[1] for sublist in scores_test_list]),
@@ -54,9 +47,9 @@ def summarize_results(
         })
         folder = 'results/'
     else:
-        folder = 'results_' + dataset + '/'
+        folder = 'results_' + parameters['dataset'] + '/'
 
-    pd.DataFrame(result, index=[model_name]).to_csv(ROOT_DIR + '/models/' + folder + model_name + suffix + '.csv')
+    pd.DataFrame(result, index=[parameters['model_name']]).to_csv(ROOT_DIR + '/models/' + folder + parameters['model_name'] + suffix + '.csv')
 
 
 def concat_tables():

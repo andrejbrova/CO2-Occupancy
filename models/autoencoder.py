@@ -61,7 +61,7 @@ def run(
         historical_co2=parameters['historical_co2'],
         shaped=parameters['windowing'],
         split_data=parameters['split_data']
-    )
+        )
 
     scores_train = []
     scores_test_list = []
@@ -91,6 +91,12 @@ def run(
         encoded_representations.append(encoded_representation)
         predictions_list.append(y_pred_test_list)
 
+    summarize_results(
+        scores_train,
+        scores_test_list,
+        parameters
+    )#, suffix='_+'+str(historical_co2)+'min')
+
     if plot_representation:
         scores_test = [sublist[-1] for sublist in scores_test_list] # Gets test combined if datasetis uci
         max_value = max(scores_test)
@@ -99,20 +105,8 @@ def run(
         plot_autoencoder(encoded_representations[max_value_index], predictions_list[max_value_index], y_test_list, scores_test, name)
         loss_plot(autoencoders_train[max_value_index], name)
         acc_plot(classifiers_train[max_value_index], name)
-        plot_densities(dataset, feature_set=parameters['feature_set'], historical_co2=parameters['historical_co2'], y_pred_test_list=predictions_list[max_value_index], model_name=parameters['model_name'])
+        #plot_densities(dataset, feature_set=parameters['feature_set'], historical_co2=parameters['historical_co2'], y_pred_test_list=predictions_list[max_value_index], model_name=parameters['model_name'])
 
-    summarize_results(
-        scores_train,
-        scores_test_list,
-        name,
-        dataset,
-        batch_size=parameters['batch_size'],
-        epochs=parameters['epochs'],
-        repeats=parameters['runs'],
-        embedding=parameters['embedding'],
-        feature_set=parameters['feature_set'],
-        historical_co2=parameters['historical_co2']
-    )#, suffix='_+'+str(historical_co2)+'min')
 
 def run_model(X_train, X_test_list, y_train, y_test_list, dataset, batch_size, epochs, embedding, historical_co2, feature_set, code_size, encoders, name):
     y_shape = y_train.shape[1:]
@@ -195,7 +189,7 @@ def build_autoencoder(embedding, X_train, target_shape, code_size, encoders):
             input_shape = np.concatenate(X_train, axis=-1).shape[1:]
         else:
             input_shape = pd.concat(X_train, axis=1).shape[1:]
-        input_layer, x = layers_embedding(X_train, encoders)
+        input_layer, x = layers_embedding(X_train, encoders, time2vec=True)
     else:
         input_shape = X_train.shape[1:]
         input_layer = Input(shape=input_shape)
@@ -342,7 +336,8 @@ def plot_densities(dataset, feature_set, historical_co2, y_pred_test_list, model
     y_pred_test_1 = y_pred_test_list[0].round()
     y_pred_test_2 = y_pred_test_list[1].round()
 
-    features = X_test_list[0].select_dtypes(exclude=['category', 'string', 'object']).columns
+    features = X_test_list[0].select_dtypes(exclude=['category', 'string', 'object']).drop(['MinuteOfDay', 'DayOfWeek', 'WeekOfYear'], axis='columns', errors='ignore').columns
+
     fig, axs = plt.subplots(len(features), 4, figsize=(4*4, 3*len(features)))
     fig.subplots_adjust(hspace=0.3)
     

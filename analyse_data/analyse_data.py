@@ -16,35 +16,30 @@ from scipy.stats import normaltest
 import seaborn as sn
 import pickle as pkl
 
-from get_data import load_dataset, load_dataset_uci, load_dataset_brick, load_dataset_graz, get_feature_list
+from get_data import load_dataset, get_readings_data
+from cosine_similarity import plot_cosine_similarity
 
 
 def main():
-    dataset_name = 'Australia'
+    """
+    Function, with which the data should be analysed
+    """
 
-    describe_dataset(dataset_name)
+    location = 'Australia'
+
+    #describe_dataset(location)
     #plot_correlation()
-    #plot_timeline(dataset_name, data_cleaning=False)
-    #plot_correlation_matrix(dataset_name)
-    #plot_hourly_distributions(dataset_name)
+    #plot_timeline(location, data_cleaning=False)
+    #plot_correlation_matrix(location)
+    plot_cosine_similarity(location)
+    #plot_hourly_distributions(location)
     #dataset_validation()
 
 def describe_dataset(dataset_name):
-    if dataset_name == 'uci':
-        datasets = load_dataset_uci()
-    elif dataset_name in ['Denmark', 'Australia', 'Italy']:
-        dataset = load_dataset_brick(dataset_name)
-        datasets = [dataset]
-    else:
-        X, y = load_dataset(
-            dataset=dataset_name,
-            feature_set='full',
-            historical_co2=False,
-            normalize=False,
-            embedding=False,
-            shaped=False,
-            split_data=False
-        )
+    
+    datasets = get_readings_data(dataset_name, data_cleaning=False)
+    if dataset_name != 'uci':
+        datasets = [datasets]
 
     for dataset in datasets:
         occupancy_count = dataset['Occupancy'].value_counts()
@@ -89,8 +84,6 @@ def plot_timeline(dataset, data_cleaning=True):
     """
     Plots the features of a dataset with time on the x axis and the feature values on the y axis
     """
-    #if dataset != 'Graz':
-     #   raise Exception('This function only works with Graz dataset so far!')
 
     lim = False
     date = pd.Timestamp('2022-07-26')
@@ -123,23 +116,67 @@ def plot_timeline(dataset, data_cleaning=True):
             X[column + ' (WR)'].plot(ax=ax[row], color='green', label='Window Right', xlabel=None)
             ax[row].set_ylabel('Feature value')
             if lim:
-                ax[row].set_xlim(left=date, right=date + pd.DateOffset(days=7))
+                ax[row].set_xlim(left=date, right=date + pd.DateOffset(days=n_days))
             ax[row].grid()
+            ax[row].label_outer()
             ax[row].legend()
-    
-    else:
-        number_columns = len(X.columns)
+
+            start_time = None
+            end_time = None
+            for timestamp in y.index:
+                if not start_time and y.loc[timestamp].values[0] == 1:
+                    start_time = timestamp
+                elif start_time and y.loc[timestamp].values[0] == 0:
+                    end_time = timestamp
+                if start_time and end_time:
+                    ax[row].axvspan(start_time, end_time, facecolor='lightblue', alpha=0.7)
+                    start_time=None
+                    end_time=None
+                    
+    elif dataset in ['Australia', 'Denmark', 'Italy']:
+        columns = X.select_dtypes(exclude=['category', 'string', 'object']).columns
+        number_columns = len(columns)
         fig, ax = plt.subplots(number_columns, 1, figsize=(6, 2*number_columns), sharex=True)
         fig.subplots_adjust(top=0.9)
         fig.add_gridspec(3, hspace=5)
 
-        for row, column in enumerate(X.columns):
+        for row, column in enumerate(columns):
+            ax[row].set_title(column)
+            for room in X['Room_ID'].unique():
+                room_data = X.loc[X.loc[:, 'Room_ID'] == room]
+                room_data[column].plot(ax=ax[row], label=room, xlabel=None)
+            ax[row].set_xlabel('Date')
+            ax[row].set_ylabel('Feature value')
+            if lim:
+                ax[row].set_xlim(left=date, right=date + pd.DateOffset(days=n_days))
+            ax[row].grid()
+            ax[row].label_outer()
+
+            start_time = None
+            end_time = None
+            for timestamp in y.index:
+                if not start_time and y.loc[timestamp].values[0] == 1:
+                    start_time = timestamp
+                elif start_time and y.loc[timestamp].values[0] == 0:
+                    end_time = timestamp
+                if start_time and end_time:
+                    ax[row].axvspan(start_time, end_time, facecolor='lightblue', alpha=0.7)
+                    start_time=None
+                    end_time=None
+    else:
+        columns = X.select_dtypes(exclude=['category', 'string', 'object']).columns
+        number_columns = len(columns)
+        fig, ax = plt.subplots(number_columns, 1, figsize=(6, 2*number_columns), sharex=True)
+        fig.subplots_adjust(top=0.9)
+        fig.add_gridspec(3, hspace=5)
+
+        for row, column in enumerate(columns):
             ax[row].set_title(column)
             X[column].plot(ax=ax[row], label=column, xlabel=None)
             ax[row].set_xlabel('Date')
             ax[row].set_ylabel('Feature value')
             if lim:
-                ax[row].set_xlim(left=date, right=date + pd.DateOffset(days=7))
+                ax[row].set_xlim(left=date, right=date + pd.DateOffset(days=n_days))
             ax[row].grid()
             ax[row].label_outer()
 
@@ -163,20 +200,45 @@ def plot_timeline(dataset, data_cleaning=True):
     plt.show()
     plt.clf()
 
-def plot_correlation_matrix(dataset_name):
-    dataset_functions = {
-        'Graz': load_dataset_graz
-    }
-    dataset = dataset_functions[dataset_name]()
+def plot_correlation_matrix(location):
+    if location == 'uci':
+        datasets = get_readings_data(location, data_cleaning=False)
+
+        for dataset, dataset_name in zip(datasets, ['Training', 'Test 1', 'Test 2']):
+            corrMatrix = dataset.corr()
+
+            fig, ax = plt.subplots(figsize=(6, 4), dpi=400)
+            fig.subplots_adjust(top=0.9)
+
+            ax = sn.heatmap(corrMatrix, annot=True)
+            for tick in ax.get_xticklabels():
+                tick.set_rotation(45)
+            for tick in ax.get_yticklabels():
+                tick.set_rotation(0)
+            plt.suptitle(f'Correlation Matrix for {location} dataset ({dataset_name})')
+            plt.tight_layout()
+
+            plt.savefig(f'{ANALYSIS_DIR}Correlation_Matrices/Corr_{location}_{dataset_name}.png')
+            plt.show()
+
+        return
+
+    dataset = get_readings_data(location, data_cleaning=False)
 
     corrMatrix = dataset.corr()
 
-    plt.figure(figsize=(12, 8))
+    fig, ax = plt.subplots(figsize=(6, 4), dpi=400)
+    fig.subplots_adjust(top=0.9)
 
     ax = sn.heatmap(corrMatrix, annot=True)
-    ax.figure.tight_layout()
+    for tick in ax.get_xticklabels():
+        tick.set_rotation(45)
+    for tick in ax.get_yticklabels():
+        tick.set_rotation(0)
+    plt.suptitle(f'Correlation Matrix for {location} dataset')
+    plt.tight_layout()
 
-    plt.savefig(ANALYSIS_DIR + 'Correlation_Matrices/Corr_' + dataset_name + '.png')
+    plt.savefig(f'{ANALYSIS_DIR}Correlation_Matrices/Corr_{location}.png')
     plt.show()
 
 def plot_hourly_distributions(dataset):

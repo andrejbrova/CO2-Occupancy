@@ -178,9 +178,9 @@ def load_dataset(
             X_test.loc[:,columns] = x_scaler.transform(X_test.loc[:,columns])
 
     for data in [X_train] + X_test_list:
-        data.loc[:,'MinuteOfDay'] = data.index.hour * 60 + data.index.minute
+    #    data.loc[:,'MinuteOfDay'] = data.index.hour * 60 + data.index.minute
         data.loc[:,'DayOfWeek'] = data.index.dayofweek
-        data.loc[:,'WeekOfYear'] = data.index.isocalendar().week.astype(int)
+      #  data.loc[:,'WeekOfYear'] = data.index.isocalendar().week.astype(int)
 
     encoders = None
     if embedding:
@@ -209,6 +209,14 @@ def load_dataset(
                 )
 
     return X_train, X_test_list, y_train, y_test_list, encoders
+
+def get_readings_data(location='Denmark', data_cleaning=True):
+    if location == 'uci':
+        return load_dataset_uci(data_cleaning)
+    elif location == 'Graz':
+        return load_dataset_graz(data_cleaning)
+    else:
+        return load_dataset_brick(location)
 
 def load_dataset_uci(data_cleaning=True):
     """
@@ -286,20 +294,21 @@ def load_dataset_brick(country):
 
     return dataset
 
-def load_dataset_graz():
+def load_dataset_graz(data_cleaning=True):
     dataset = pd.read_excel(
         DATA_DIR + 'Graz_occupants.xlsx',
         index_col='datetime',
         parse_dates=True
     )
 
-    # Remove faulty data
-    time_windows_to_exclude = [
-        slice(pd.Timestamp('2022-06-22 15:45:00'), pd.Timestamp('2022-07-18 16:05:00'))
-    ]
+    if data_cleaning:
+        # Remove faulty data
+        time_windows_to_exclude = [
+            slice(pd.Timestamp('2022-06-22 15:45:00'), pd.Timestamp('2022-07-18 16:05:00'))
+        ]
 
-    for time_window in time_windows_to_exclude:
-        dataset = dataset.drop(dataset.loc[time_window].index)
+        for time_window in time_windows_to_exclude:
+            dataset = dataset.drop(dataset.loc[time_window].index)
 
     # Convert colums to numeric values
     for column in dataset.iloc[:, 4:]:

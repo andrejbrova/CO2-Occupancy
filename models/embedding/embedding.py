@@ -24,15 +24,20 @@ from utils import T2V
 # https://medium.com/@jdwittenauer/deep-learning-with-keras-structured-time-series-37a66c6aeb28
 
 
-def main():
-    dataset = 'uci'
-    feature_set='full'
-    historical_co2=False
-    batch_size = 32
-    epochs = 5
-    repeats = 1
-    model_name = 'LSTM'
-    shaping = False
+def run(
+    parameters = {
+        'model_name': 'LSTM',
+        'dataset': 'uci',
+        'feature_set': 'full',
+        'split_data': True,
+        'epochs': 50,
+        'historical_co2': False,
+        'embedding': True,
+        'windowing': False,
+        'runs': 10,
+        'batch_size': 32,
+        }
+    ):
 
     models = {
         'CNN': layers_CNN,
@@ -42,27 +47,25 @@ def main():
         'T2V': layers_T2V, # TODO: Needs to be trained on result
     }
 
-    run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repeats, models[model_name], model_name, shaping)
-
-def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repeats, model_layers, model_name, shaping):
     X_train, X_test_list, y_train, y_test_list, encoders = load_dataset(
-        dataset=dataset,
-        feature_set=feature_set,
-        historical_co2=historical_co2,
+        dataset=parameters['dataset'],
+        feature_set=parameters['feature_set'],
+        historical_co2=parameters['historical_co2'],
         normalize=True,
         embedding=True,
-        shaped=shaping
-    )
+        shaped=parameters['windowing'],
+        split_data=parameters['split_data']
+        )
     
     models = []
     scores_train = []
     scores_test_1 = []
     scores_test_2 = []
     scores_test_combined = []
-    for run in range(repeats):
-        print('Run: ' + str(run + 1) + ', Dataset: ' + dataset + ', Model: ' + model_name)
+    for run in range(parameters['runs']):
+        print('Run: ' + str(run + 1) + ', Dataset: ' + parameters['dataset'] + ', Model: ' + parameters['model_name'])
         
-        acc_train, acc_test_1, acc_test_2, acc_test_combined, model = run_model(X_train, X_test_list, y_train, y_test_list, batch_size, epochs, model_layers, encoders)
+        acc_train, acc_test_1, acc_test_2, acc_test_combined, model = run_model(X_train, X_test_list, y_train, y_test_list, parameters['batch_size'], parameters['epochs'], models[parameters['model_name']], encoders)
         
         models.append(model)
         scores_train.append(acc_train)
@@ -70,10 +73,10 @@ def run_embedding(dataset, feature_set, historical_co2, batch_size, epochs, repe
         scores_test_2.append(acc_test_2)
         scores_test_combined.append(acc_test_combined)
 
-    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, model_name, dataset, batch_size, epochs, repeats, True, feature_set, historical_co2)#, suffix='_+'+str(historical_co2)+'min')
+    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, parameters)#, suffix='_+'+str(historical_co2)+'min')
     
     for cat_var in encoders.keys():
-        plot_embedding(models, dataset, encoders, cat_var, scores_test_1, model_name)        
+        plot_embedding(models, parameters['dataset'], encoders, cat_var, scores_test_1, parameters['model_name'])        
 
 def run_model(X_train, X_test_list, y_train, y_test_list, batch_size, epochs, model_layers, encoders):
     inputs, x_emb = layers_embedding(X_train, encoders)
@@ -164,7 +167,7 @@ def plot_embedding(models, dataset, encoders, category, scores_test_1, model_nam
 
 # Layers
 
-def layers_embedding(X_train, encoders):
+def layers_embedding(X_train, encoders, time2vec=True):
     input_shape = X_train[0].shape[1:]
     #input_shape[-1] += len(X_train) - 1
     #input_shape = tuple(input_shape)
@@ -176,7 +179,7 @@ def layers_embedding(X_train, encoders):
     #cont_vars = X_train[-1].columns
 
     # Vector sizes
-    cat_sizes = [(c, len(encoders['DayOfWeek'].classes_)) for i, c in enumerate(cat_vars)]
+    cat_sizes = [(c, len(encoders['DayOfWeek'].classes_)) for i, c in enumerate(cat_vars)] # TODO generalize
     embedding_sizes = [(c, min(50, (c + 1) // 2)) for _, c in cat_sizes]
 
     inputs = []
@@ -205,7 +208,8 @@ def layers_embedding(X_train, encoders):
     x = keras.layers.Reshape(concat_shape)(x)
 
     # Time2Vec
-    x = layers_T2V(x)
+    if time2vec:
+        x = layers_T2V(x)
 
     return inputs, x
 
@@ -264,4 +268,4 @@ def layers_T2V(x):
     return x
 
 if __name__ == '__main__':
-    main()
+    run()
