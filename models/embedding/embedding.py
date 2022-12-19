@@ -57,7 +57,7 @@ def run(
         split_data=parameters['split_data']
         )
     
-    models = []
+    trained_models = []
     scores_train = []
     scores_test_1 = []
     scores_test_2 = []
@@ -67,7 +67,7 @@ def run(
         
         acc_train, acc_test_1, acc_test_2, acc_test_combined, model = run_model(X_train, X_test_list, y_train, y_test_list, parameters['batch_size'], parameters['epochs'], models[parameters['model_name']], encoders)
         
-        models.append(model)
+        trained_models.append(model)
         scores_train.append(acc_train)
         scores_test_1.append(acc_test_1)
         scores_test_2.append(acc_test_2)
@@ -76,7 +76,7 @@ def run(
     summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, parameters)#, suffix='_+'+str(historical_co2)+'min')
     
     for cat_var in encoders.keys():
-        plot_embedding(models, parameters['dataset'], encoders, cat_var, scores_test_1, parameters['model_name'])        
+        plot_embedding(trained_models, parameters['dataset'], encoders, cat_var, scores_test_1, parameters['model_name'])        
 
 def run_model(X_train, X_test_list, y_train, y_test_list, batch_size, epochs, model_layers, encoders):
     inputs, x_emb = layers_embedding(X_train, encoders)
@@ -98,7 +98,7 @@ def run_model(X_train, X_test_list, y_train, y_test_list, batch_size, epochs, mo
                             min_lr=0.0001),
         ModelCheckpoint('best_model_weights.hdf5', monitor='binary_accuracy',
                             save_best_only=True),
-        keras.callbacks.EarlyStopping(monitor='val_binary_accuracy', patience=10)
+        keras.callbacks.EarlyStopping(monitor='val_binary_accuracy', patience=5, min_delta=0.05, verbose=1)
     ]
     #X_train[0] = np.asarray(X_train[0]).astype('float32')
     #X_train[1] = np.asarray(X_train[1]).astype('float32')
@@ -179,7 +179,7 @@ def layers_embedding(X_train, encoders, time2vec=True):
     #cont_vars = X_train[-1].columns
 
     # Vector sizes
-    cat_sizes = [(c, len(encoders['DayOfWeek'].classes_)) for i, c in enumerate(cat_vars)] # TODO generalize
+    cat_sizes = [(c, len(encoders[c].classes_)) for i, c in enumerate(cat_vars)]
     embedding_sizes = [(c, min(50, (c + 1) // 2)) for _, c in cat_sizes]
 
     inputs = []

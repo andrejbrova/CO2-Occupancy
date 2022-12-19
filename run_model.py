@@ -12,7 +12,8 @@ def main():
     parameter_presets = [
         #autoencoder_model_1_t2v,
         #autoencoder_model_2_t2v,
-        autoencoder_model_3_t2v,
+        #autoencoder_model_3_t2v,
+        brick_australia_test_time2vec
     ]
 
     # Association of models to file, which can execute it
@@ -106,6 +107,136 @@ autoencoder_model_3_t2v = {
     'runs': 10,
     'batch_size': 16,
     'code_size': 2
+}
+brick_australia_CNN = {
+    'model_name': 'CNN',
+    'dataset': 'Australia',
+    'feature_set': 'full',
+    'split_data': True,
+    'epochs': 200,
+    'historical_co2': False,
+    'embedding': True,
+    'windowing': False,
+    'runs': 10,
+    'batch_size': 32,
+    'code_size': 6
+}
+brick_australia_LSTM = {
+    'model_name': 'LSTM',
+    'dataset': 'Australia',
+    'feature_set': 'full',
+    'split_data': True,
+    'epochs': 200,
+    'historical_co2': False,
+    'embedding': True,
+    'windowing': False,
+    'runs': 10,
+    'batch_size': 32,
+    'code_size': 6
+}
+brick_australia_autoencoder = {
+    'model_name': 'autoencoder',
+    'dataset': 'Australia',
+    'feature_set': 'full',
+    'split_data': True,
+    'epochs': 200,
+    'historical_co2': False,
+    'embedding': True,
+    'windowing': False,
+    'runs': 10,
+    'batch_size': 32,
+    'code_size': 6
+}
+brick_denmark_CNN = {
+    'model_name': 'CNN',
+    'dataset': 'Denmark',
+    'feature_set': 'full',
+    'split_data': True,
+    'epochs': 200,
+    'historical_co2': False,
+    'embedding': True,
+    'windowing': False,
+    'runs': 10,
+    'batch_size': 32,
+    'code_size': 6
+}
+brick_denmark_LSTM = {
+    'model_name': 'LSTM',
+    'dataset': 'Denmark',
+    'feature_set': 'full',
+    'split_data': True,
+    'epochs': 200,
+    'historical_co2': False,
+    'embedding': True,
+    'windowing': False,
+    'runs': 10,
+    'batch_size': 32,
+    'code_size': 6
+}
+brick_denmark_autoencoder = {
+    'model_name': 'autoencoder',
+    'dataset': 'Denmark',
+    'feature_set': 'full',
+    'split_data': True,
+    'epochs': 200,
+    'historical_co2': False,
+    'embedding': True,
+    'windowing': False,
+    'runs': 10,
+    'batch_size': 32,
+    'code_size': 6
+}
+brick_italy_CNN = {
+    'model_name': 'CNN',
+    'dataset': 'Italy',
+    'feature_set': 'full',
+    'split_data': True,
+    'epochs': 200,
+    'historical_co2': False,
+    'embedding': True,
+    'windowing': False,
+    'runs': 10,
+    'batch_size': 32,
+    'code_size': 6
+}
+brick_italy_LSTM = {
+    'model_name': 'LSTM',
+    'dataset': 'Italy',
+    'feature_set': 'full',
+    'split_data': True,
+    'epochs': 200,
+    'historical_co2': False,
+    'embedding': True,
+    'windowing': False,
+    'runs': 10,
+    'batch_size': 32,
+    'code_size': 6
+}
+brick_italy_autoencoder = {
+    'model_name': 'autoencoder',
+    'dataset': 'Italy',
+    'feature_set': 'full',
+    'split_data': True,
+    'epochs': 200,
+    'historical_co2': False,
+    'embedding': True,
+    'windowing': False,
+    'runs': 10,
+    'batch_size': 32,
+    'code_size': 6
+}
+brick_australia_test_time2vec = {
+    'model_name': 'CNN',
+    'dataset': 'Australia',
+    'feature_set': 'full',
+    'split_data': True,
+    'epochs': 200,
+    'historical_co2': False,
+    'embedding': True,
+    'windowing': True,
+    'runs': 1,
+    'batch_size': 32,
+    'code_size': 6
 }
 
 if __name__ == '__main__':

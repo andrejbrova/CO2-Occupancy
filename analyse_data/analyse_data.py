@@ -25,7 +25,7 @@ def main():
     Function, with which the data should be analysed
     """
 
-    location = 'Australia'
+    location = 'Denmark'
 
     #describe_dataset(location)
     #plot_correlation()
@@ -296,7 +296,7 @@ def dataset_validation():
     # https://pandera.readthedocs.io/en/v0.6.5/generated/pandera.hypotheses.Hypothesis.html?highlight=pa.Hypothesis
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.normaltest.html
 
-    dataset = load_dataset_graz()
+    dataset = get_readings_data('Graz')
 
     normal_check = pa.Hypothesis(
         test=normaltest,

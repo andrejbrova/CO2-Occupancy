@@ -6,6 +6,7 @@ from pandas import DatetimeIndex
 
 ROOT_DIR = str(Path(__file__).parents[0])
 sys.path.append(ROOT_DIR)
+RESULTS_DIR = ROOT_DIR + '/results/'
 
 import os
 import glob
@@ -45,11 +46,11 @@ def summarize_results(
             'accuracy_test_combined_mean': np.mean([sublist[2] for sublist in scores_test_list]),
             'accuracy_test_combined_std': np.std([sublist[2] for sublist in scores_test_list])
         })
-        folder = 'results/'
+        folder = ''
     else:
         folder = 'results_' + parameters['dataset'] + '/'
 
-    pd.DataFrame(result, index=[parameters['model_name']]).to_csv(ROOT_DIR + '/models/' + folder + parameters['model_name'] + suffix + '.csv')
+    pd.DataFrame(result, index=[parameters['model_name']]).to_csv(f'{RESULTS_DIR}{folder}{parameters["model_name"]}{suffix}.csv')
 
 
 def concat_tables():

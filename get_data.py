@@ -94,7 +94,7 @@ def load_dataset(
     else:
         data = load_dataset_brick(dataset)
 
-        features.append('Room_ID')
+        features += ['Room_ID', 'Month']
 
         if historical_co2:
             if isinstance(historical_co2, int):
@@ -292,6 +292,8 @@ def load_dataset_brick(country):
     if country == 'Denmark':
         dataset.loc[dataset.loc[:, 'Occupancy'] > 0, 'Occupancy'] = 1
 
+    dataset['Month'] = dataset.index.month.astype('category')
+
     return dataset
 
 def load_dataset_graz(data_cleaning=True):
@@ -339,7 +341,8 @@ def translate_columns(dataset): # Uses a dictionary to translate columns to a un
 def get_embeddings(X, X_test_list):
     cat_vars = [
         'Room_ID',
-        'DayOfWeek'
+        'DayOfWeek',
+        'Month'
     ]
 
     #X = X.assign(Weekday=X.index.weekday)
@@ -390,7 +393,8 @@ def get_embeddings(X, X_test_list):
 def get_embeddings_shaped(X, X_test_list, columns):
     cat_vars = [
         'Room_ID',
-        'DayOfWeek'
+        'DayOfWeek',
+        'Month'
     ]
 
     cat_var_indexes = []
