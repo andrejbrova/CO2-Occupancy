@@ -18,6 +18,7 @@ import pickle as pkl
 
 from get_data import load_dataset, get_readings_data
 from cosine_similarity import plot_cosine_similarity
+from density_functions.density_functions import plot_probability_density_function
 
 
 def main():
@@ -25,13 +26,14 @@ def main():
     Function, with which the data should be analysed
     """
 
-    location = 'Denmark'
+    location = 'Australia'
 
     #describe_dataset(location)
     #plot_correlation()
     #plot_timeline(location, data_cleaning=False)
+    plot_probability_density_function(location)
     #plot_correlation_matrix(location)
-    plot_cosine_similarity(location)
+    #plot_cosine_similarity(location)
     #plot_hourly_distributions(location)
     #dataset_validation()
 

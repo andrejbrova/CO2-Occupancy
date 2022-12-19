@@ -105,7 +105,7 @@ def run(
         plot_autoencoder(encoded_representations[max_value_index], predictions_list[max_value_index], y_test_list, scores_test, name)
         loss_plot(autoencoders_train[max_value_index], name)
         acc_plot(classifiers_train[max_value_index], name)
-        #plot_densities(dataset, feature_set=parameters['feature_set'], historical_co2=parameters['historical_co2'], y_pred_test_list=predictions_list[max_value_index], model_name=parameters['model_name'])
+        plot_densities(dataset, feature_set=parameters['feature_set'], historical_co2=parameters['historical_co2'], y_pred_test_list=predictions_list[max_value_index], model_name=parameters['model_name'])
 
 
 def run_model(X_train, X_test_list, y_train, y_test_list, dataset, batch_size, epochs, embedding, historical_co2, feature_set, code_size, encoders, name):

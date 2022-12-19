@@ -98,7 +98,7 @@ def run_model(X_train, X_test_list, y_train, y_test_list, batch_size, epochs, mo
                             min_lr=0.0001),
         ModelCheckpoint('best_model_weights.hdf5', monitor='binary_accuracy',
                             save_best_only=True),
-        keras.callbacks.EarlyStopping(monitor='val_binary_accuracy', patience=5, min_delta=0.05, verbose=1)
+        keras.callbacks.EarlyStopping(monitor='val_binary_accuracy', mode='max', patience=10, min_delta=0.001, verbose=1)
     ]
     #X_train[0] = np.asarray(X_train[0]).astype('float32')
     #X_train[1] = np.asarray(X_train[1]).astype('float32')

@@ -23,7 +23,7 @@ def load_dataset(
         feature_set='full',  # 'full', 'Light+CO2', 'CO2'
         historical_co2=False,
         normalize=False,
-        embedding=True,
+        embedding=False,
         shaped=False,
         split_data='Seasonal', # True, False, 'Seasonal'
         data_cleaning=True
