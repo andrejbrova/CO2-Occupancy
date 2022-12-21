@@ -26,7 +26,7 @@ def main():
     Function, with which the data should be analysed
     """
 
-    location = 'Australia'
+    location = 'Graz'
 
     #describe_dataset(location)
     #plot_correlation()
@@ -109,7 +109,7 @@ def plot_timeline(dataset, data_cleaning=True):
             'Temperature'
         ]
 
-        fig, ax = plt.subplots(len(features), 1, figsize=(6, 3*len(features)))
+        fig, ax = plt.subplots(len(features), 1, figsize=(6, 3*len(features)), sharex=True)
 
         for row, column in enumerate(features):
             ax[row].set_title(column)

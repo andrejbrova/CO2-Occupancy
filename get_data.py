@@ -75,7 +75,7 @@ def load_dataset(
         print(f'input: {X_train.shape[-1]} features ({X_train.columns.tolist()}).')
 
     elif dataset == 'Graz':
-        data = load_dataset_graz()
+        data = load_dataset_graz(data_cleaning)
 
         # TODO historical CO2
 
@@ -86,8 +86,15 @@ def load_dataset(
 
         if not split_data:
             return X, y
+        elif split_data == 'Seasonal':
+            raise Exception('Seasonal data split not possible with Graz dataset')
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, shuffle=True)
+        train_data_mask = X.index < pd.Timestamp('2022-07-18 16:10:00')
+        X_train = X[train_data_mask]
+        X_test = X[~train_data_mask]
+        y_train = y[train_data_mask]
+        y_test = y[~train_data_mask]
+
         X_test_list = [X_test]
         y_test_list = [y_test]
 
@@ -305,11 +312,17 @@ def load_dataset_graz(data_cleaning=True):
 
     if data_cleaning:
         # Remove faulty data
-        time_windows_to_exclude = [
-            slice(pd.Timestamp('2022-06-22 15:45:00'), pd.Timestamp('2022-07-18 16:05:00'))
+        faulty = [
+            slice('2022-03-29 00:05:00', '2022-03-29 13:00:00'),
+            slice('2022-03-30 15:25:00', '2022-04-04 13:35:00'),
+            slice('2022-05-12 12:35:00', '2022-05-14 11:55:00'),
+            slice('2022-06-22 15:45:00', '2022-07-18 16:05:00'),
+            slice('2022-07-24 09:40:00', '2022-07-25 09:20:00'),
+            slice('2022-07-26 04:05:00', '2022-07-26 10:25:00'),
+            slice('2022-07-26 17:30:00', '2022-07-27 05:35:00')
         ]
 
-        for time_window in time_windows_to_exclude:
+        for time_window in faulty:
             dataset = dataset.drop(dataset.loc[time_window].index)
 
     # Convert colums to numeric values

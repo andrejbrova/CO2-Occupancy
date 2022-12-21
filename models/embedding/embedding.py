@@ -65,15 +65,15 @@ def run(
     for run in range(parameters['runs']):
         print('Run: ' + str(run + 1) + ', Dataset: ' + parameters['dataset'] + ', Model: ' + parameters['model_name'])
         
-        acc_train, acc_test_1, acc_test_2, acc_test_combined, model = run_model(X_train, X_test_list, y_train, y_test_list, parameters['batch_size'], parameters['epochs'], models[parameters['model_name']], encoders)
+        acc_train, acc_test_list, model = run_model(X_train, X_test_list, y_train, y_test_list, parameters['batch_size'], parameters['epochs'], models[parameters['model_name']], encoders)
         
         trained_models.append(model)
         scores_train.append(acc_train)
-        scores_test_1.append(acc_test_1)
-        scores_test_2.append(acc_test_2)
-        scores_test_combined.append(acc_test_combined)
+        scores_test_1.append(acc_test_list[0])
+        #scores_test_2.append(acc_test_2)
+        #scores_test_combined.append(acc_test_combined)
 
-    summarize_results(scores_train, scores_test_1, scores_test_2, scores_test_combined, parameters)#, suffix='_+'+str(historical_co2)+'min')
+    summarize_results(scores_train, [scores_test_1], parameters)#, suffix='_+'+str(historical_co2)+'min')
     
     for cat_var in encoders.keys():
         plot_embedding(trained_models, parameters['dataset'], encoders, cat_var, scores_test_1, parameters['model_name'])        
@@ -121,7 +121,7 @@ def run_model(X_train, X_test_list, y_train, y_test_list, batch_size, epochs, mo
     for y_test, y_pred_test in zip(y_test_list, y_pred_test_list):
         acc_test_list.append(BinaryAccuracy()(y_test, y_pred_test))
 
-    return acc_train, acc_test_list[0], acc_test_list[1], acc_test_list[2], model # TODO change
+    return acc_train, acc_test_list, model
 
 def plot_embedding(models, dataset, encoders, category, scores_test_1, model_name):
     # Find best and worst model

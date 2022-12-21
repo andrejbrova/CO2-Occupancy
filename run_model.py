@@ -119,7 +119,6 @@ brick_australia_CNN = {
     'windowing': False,
     'runs': 10,
     'batch_size': 32,
-    'code_size': 6
 }
 brick_australia_LSTM = {
     'model_name': 'LSTM',
@@ -132,7 +131,6 @@ brick_australia_LSTM = {
     'windowing': False,
     'runs': 10,
     'batch_size': 32,
-    'code_size': 6
 }
 brick_australia_autoencoder = {
     'model_name': 'autoencoder',
@@ -158,7 +156,6 @@ brick_denmark_CNN = {
     'windowing': False,
     'runs': 10,
     'batch_size': 32,
-    'code_size': 6
 }
 brick_denmark_LSTM = {
     'model_name': 'LSTM',
@@ -171,7 +168,6 @@ brick_denmark_LSTM = {
     'windowing': False,
     'runs': 10,
     'batch_size': 32,
-    'code_size': 6
 }
 brick_denmark_autoencoder = {
     'model_name': 'autoencoder',
@@ -197,7 +193,6 @@ brick_italy_CNN = {
     'windowing': False,
     'runs': 10,
     'batch_size': 32,
-    'code_size': 6
 }
 brick_italy_LSTM = {
     'model_name': 'LSTM',
@@ -210,7 +205,6 @@ brick_italy_LSTM = {
     'windowing': False,
     'runs': 10,
     'batch_size': 32,
-    'code_size': 6
 }
 brick_italy_autoencoder = {
     'model_name': 'autoencoder',
@@ -230,13 +224,12 @@ brick_australia_test_time2vec = {
     'dataset': 'Australia',
     'feature_set': 'full',
     'split_data': True,
-    'epochs': 200,
+    'epochs': 1,
     'historical_co2': False,
     'embedding': True,
     'windowing': True,
     'runs': 1,
     'batch_size': 32,
-    'code_size': 6
 }
 
 if __name__ == '__main__':
