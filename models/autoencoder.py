@@ -102,9 +102,9 @@ def run(
         max_value = max(scores_test)
         max_value_index = scores_test.index(max_value)
 
-        plot_autoencoder(encoded_representations[max_value_index], predictions_list[max_value_index], y_test_list, scores_test, name)
-        loss_plot(autoencoders_train[max_value_index], name)
-        acc_plot(classifiers_train[max_value_index], name)
+        plot_autoencoder(encoded_representations[max_value_index], predictions_list[max_value_index], y_test_list, scores_test, parameters['dataset'], name)
+        loss_plot(autoencoders_train[max_value_index], location, name)
+        acc_plot(classifiers_train[max_value_index], location, name)
         plot_densities(dataset, feature_set=parameters['feature_set'], historical_co2=parameters['historical_co2'], y_pred_test_list=predictions_list[max_value_index], model_name=parameters['model_name'])
 
 
@@ -234,7 +234,7 @@ def build_autoencoder(embedding, X_train, target_shape, code_size, encoders):
 
     return autoencoder_for_training, autoencoder_for_representation, autoencoder_for_classifier
 
-def loss_plot(autoencoder_train, model_name):
+def loss_plot(autoencoder_train, location, model_name):
     loss = autoencoder_train.history['loss']
     val_loss = autoencoder_train.history['val_loss']
     epochs = range(len(loss))
@@ -245,10 +245,10 @@ def loss_plot(autoencoder_train, model_name):
 
     plt.title('Training and validation loss')
     plt.legend()
-    plt.savefig(str(ROOT_DIR) + '/models/results/' + model_name + '_loss_plot.png')
+    plt.savefig(str(ROOT_DIR) + '/results/results_' + location + '/' + model_name + '_loss_plot.png')
     #plt.show()
 
-def acc_plot(classifier_train, model_name):
+def acc_plot(classifier_train, location, model_name):
     accuracy = classifier_train.history['binary_accuracy']
     val_accuracy = classifier_train.history['val_binary_accuracy']
     epochs = range(len(accuracy))
@@ -259,10 +259,10 @@ def acc_plot(classifier_train, model_name):
 
     plt.title('Training and validation accuracy')
     plt.legend()
-    plt.savefig(str(ROOT_DIR) + '/models/results/' + model_name + '_accuracy_plot.png')
+    plt.savefig(str(ROOT_DIR) + '/results/results_' + location + '/' + model_name + '_accuracy_plot.png')
     #plt.show()
 
-def plot_autoencoder(encoded_representations, y_pred_list, y_test_list, scores_test_combined, model_name):
+def plot_autoencoder(encoded_representations, y_pred_list, y_test_list, scores_test_combined, location, model_name):
     #tsne = TSNE(n_components=2, random_state=42)
 
     #X_transformed = tsne.fit_transform(best)
@@ -320,7 +320,7 @@ def plot_autoencoder(encoded_representations, y_pred_list, y_test_list, scores_t
         plt.xlabel('Output1')
         plt.ylabel('Output2')
 
-        plt.savefig(str(ROOT_DIR) + '/models/results/' + model_name + '_representation_test_' + name + '.png')
+        plt.savefig(str(ROOT_DIR) + '/results/results_' + location + '/' + model_name + '_representation_test_' + name + '.png')
         #plt.show()
 
 def plot_densities(dataset, feature_set, historical_co2, y_pred_test_list, model_name):
@@ -360,7 +360,7 @@ def plot_densities(dataset, feature_set, historical_co2, y_pred_test_list, model
 
     plt.suptitle('Density for ' + model_name + ' data points')
     plt.tight_layout()
-    plt.savefig(str(ROOT_DIR) + '/models/results/' + model_name + '_densities.png')
+    plt.savefig(str(ROOT_DIR) + '/results/results_' + dataset + '/' + model_name + '_densities.png')
     #plt.show()
 
 if __name__ == '__main__':

@@ -158,11 +158,11 @@ def plot_embedding(models, dataset, encoders, category, scores_test_1, model_nam
     plt.legend()
 
     if dataset == 'uci':
-        folder = 'results/'
+        folder = '/results/'
     else:
-        folder = 'results_' + dataset + '/'
+        folder = '/results/results_' + dataset + '/'
 
-    plt.savefig(str(ROOT_DIR) + '/models/' + folder + model_name + '_embedding_' + category + '.png')
+    plt.savefig(str(ROOT_DIR) + folder + model_name + '_embedding_' + category + '.png')
     #plt.show()
 
 # Layers

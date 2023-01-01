@@ -13,7 +13,8 @@ def main():
         #autoencoder_model_1_t2v,
         #autoencoder_model_2_t2v,
         #autoencoder_model_3_t2v,
-        brick_australia_test_time2vec
+        #brick_australia_test_time2vec,
+        graz_autoencoder
     ]
 
     # Association of models to file, which can execute it
@@ -224,12 +225,25 @@ brick_australia_test_time2vec = {
     'dataset': 'Australia',
     'feature_set': 'full',
     'split_data': True,
-    'epochs': 1,
+    'epochs': 200,
     'historical_co2': False,
     'embedding': True,
     'windowing': True,
     'runs': 1,
     'batch_size': 32,
+}
+graz_autoencoder = {
+    'model_name': 'autoencoder',
+    'dataset': 'Graz',
+    'feature_set': 'full',
+    'split_data': True,
+    'epochs': 100,
+    'historical_co2': False,
+    'embedding': False,
+    'windowing': False,
+    'runs': 1,
+    'batch_size': 32,
+    'code_size': 2
 }
 
 if __name__ == '__main__':

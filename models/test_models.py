@@ -18,20 +18,14 @@ from utils import summarize_results
 from datamodels import datamodels as dm
 
 # References
+# CNN:
 # https://towardsdatascience.com/a-comprehensive-guide-to-convolutional-neural-networks-the-eli5-way-3bd2b1164a53
+# https://towardsdatascience.com/how-to-use-convolutional-neural-networks-for-time-series-classification-56b1b0a07a57
+# LSTM:
+# https://towardsdatascience.com/time-series-prediction-with-lstm-in-tensorflow-42104db39340
 
 
-def main():
-    dataset = 'uci'
-    batch_size = 32
-    epochs = 50
-    repeats = 10
-    historical_co2 = 1
-    embedding = False # Wont work here
-    feature_set = 'CO2'
-    model_name = 'LSTM'
-    shaped = False
-
+def run(parameters):
     models = {
         'CNN': (dm.ConvolutionNetwork, layers_CNN),
         'SRNN': (dm.RecurrentNetwork, layers_SRNN),
@@ -40,25 +34,26 @@ def main():
     }
 
     X_train, X_test_list, y_train, y_test_list = load_dataset(
-        dataset=dataset,
-        feature_set=feature_set,
-        historical_co2=historical_co2,
+        dataset=parameters['dataset'],
+        feature_set=dataset['feature_set'],
+        historical_co2=parameters['historical_co2'],
         normalize=True,
-        embedding=embedding,
-        shaped=shaped
+        embedding=False,
+        shaped=parameters['windowing'],
+        split_data=parameters['split_data']
     )
 
     scores_train = []
     scores_test_list = []
     
-    for run in range(repeats):
-        print('Run: ' + str(run + 1) + ', Dataset: ' + dataset + ', Model: ' + model_name)
-        model = build_model(X_train.shape[0], X_train.shape[-1], 1, batch_size, epochs, models[model_name], model_name)
-        acc_train, acc_test_1, acc_test_2, acc_test_combined = run_model(X_train, X_test_list[0], X_test_list[1], X_test_list[2], y_train, y_test_list[0], y_test_list[1], y_test_list[2], model, shaped)
+    for run in range(parameters['repeats']):
+        print('Run: ' + str(run + 1) + ', Dataset: ' + parameters['dataset'] + ', Model: ' + parameters['model_name'])
+        model = build_model(X_train.shape[0], X_train.shape[-1], 1, parameters['batch_size'], parameters['epochs'], models[parameters['model_name']], parameters['model_name'])
+        acc_train, acc_test_1, acc_test_2, acc_test_combined = run_model(X_train, X_test_list[0], X_test_list[1], X_test_list[2], y_train, y_test_list[0], y_test_list[1], y_test_list[2], model, parameters['windowing'])
         scores_train.append(acc_train)
         scores_test_list.append([acc_test_1, acc_test_2, acc_test_combined])
     
-    summarize_results(scores_train, scores_test_list, model_name, dataset, batch_size, epochs, repeats, embedding, feature_set, historical_co2, suffix='_+'+str(historical_co2)+'min')
+    summarize_results(scores_train, scores_test_list, parameters)# suffix='_+'+str(historical_co2)+'min')
 
 def build_model(n_timesteps, n_features, target_shape, batch_size, epochs, model_type, name):
     

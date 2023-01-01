@@ -46,11 +46,8 @@ def summarize_results(
             'accuracy_test_combined_mean': np.mean([sublist[2] for sublist in scores_test_list]),
             'accuracy_test_combined_std': np.std([sublist[2] for sublist in scores_test_list])
         })
-        folder = ''
-    else:
-        folder = 'results_' + parameters['dataset'] + '/'
 
-    pd.DataFrame(result, index=[parameters['model_name']]).to_csv(f'{RESULTS_DIR}{folder}{parameters["model_name"]}{suffix}.csv')
+    pd.DataFrame(result, index=[parameters['model_name']]).to_csv(f'{RESULTS_DIR}results_{parameters["dataset"]}/{parameters["model_name"]}{suffix}.csv')
 
 
 def concat_tables():

@@ -334,6 +334,9 @@ def load_dataset_graz(data_cleaning=True):
 
     # Instead of total number of people, 'Occupancy' should indicate if room is occupied or not
     dataset.loc[dataset.loc[:, 'Occupancy'] > 0, 'Occupancy'] = 1
+
+    # Drop unnecessary Columns
+    dataset = dataset.drop(columns=['Window Left Status', 'Window Right Status', 'Door Status'])
     
     return dataset
 
