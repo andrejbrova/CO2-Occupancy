@@ -25,7 +25,7 @@ def load_dataset(
         normalize=False,
         embedding=False,
         shaped=False,
-        split_data='Seasonal', # True, False, 'Seasonal'
+        split_data=True, # True, False, 'Seasonal'
         data_cleaning=True
 ):
 

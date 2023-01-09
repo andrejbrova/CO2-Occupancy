@@ -14,6 +14,7 @@ from keras.metrics import BinaryAccuracy
 from keras.models import Model, Sequential
 from keras.regularizers import l1, l2
 from matplotlib import pyplot as plt
+import pickle
 from sklearn.manifold import TSNE
 from sklearn.svm import SVC
 from tensorflow.keras.optimizers import Adam
@@ -22,6 +23,9 @@ from tensorflow.keras.utils import set_random_seed
 from get_data import load_dataset
 from utils import summarize_results
 from models.embedding.embedding import layers_embedding
+
+
+PICKLE_DIR = str(ROOT_DIR) + '/pickles/'
 
 # References:
 # https://towardsdatascience.com/applied-deep-learning-part-3-autoencoders-1c083af4d798#4214
@@ -35,6 +39,7 @@ from models.embedding.embedding import layers_embedding
 
 def run(
     parameters={
+        'id': 'test',
         'model_name': 'autoencoder',
         'dataset': 'uci',
         'feature_set': 'Light+CO2',
@@ -55,7 +60,6 @@ def run(
 
     X_train, X_test_list, y_train, y_test_list, encoders = load_dataset(
         dataset=dataset,
-        feature_set=parameters['feature_set'],
         normalize=True,
         embedding=parameters['embedding'],
         historical_co2=parameters['historical_co2'],
@@ -74,15 +78,8 @@ def run(
         set_random_seed(run)
         acc_train, acc_test_list, autoencoder_train, classifier_train, encoded_representation, y_pred_test_list = run_model(
             X_train, X_test_list, y_train, y_test_list,
-            dataset,
-            batch_size=parameters['batch_size'],
-            epochs=parameters['epochs'],
-            embedding=parameters['embedding'],
-            historical_co2=parameters['historical_co2'],
-            feature_set=parameters['feature_set'],
-            code_size=parameters['code_size'],
             encoders=encoders,
-            name=parameters['model_name']
+            parameters=parameters
         )
         scores_train.append(acc_train)
         scores_test_list.append(acc_test_list)
@@ -103,19 +100,19 @@ def run(
         max_value_index = scores_test.index(max_value)
 
         plot_autoencoder(encoded_representations[max_value_index], predictions_list[max_value_index], y_test_list, scores_test, parameters['dataset'], name)
-        loss_plot(autoencoders_train[max_value_index], location, name)
-        acc_plot(classifiers_train[max_value_index], location, name)
+        loss_plot(autoencoders_train[max_value_index], parameters['dataset'], name)
+        acc_plot(classifiers_train[max_value_index], parameters['dataset'], name)
         plot_densities(dataset, feature_set=parameters['feature_set'], historical_co2=parameters['historical_co2'], y_pred_test_list=predictions_list[max_value_index], model_name=parameters['model_name'])
 
 
-def run_model(X_train, X_test_list, y_train, y_test_list, dataset, batch_size, epochs, embedding, historical_co2, feature_set, code_size, encoders, name):
+def run_model(X_train, X_test_list, y_train, y_test_list, encoders, parameters):
     y_shape = y_train.shape[1:]
 
     # Train autoencoder:
 
-    autoencoder_for_training, autoencoder_for_representation, autoencoder_for_classifier = build_autoencoder(embedding, X_train, y_shape, code_size, encoders)
+    autoencoder_for_training, autoencoder_for_representation, autoencoder_for_classifier = build_autoencoder(parameters['embedding'], X_train, y_shape, parameters['code_size'], encoders)
 
-    if embedding:
+    if parameters['embedding']:
         if type(X_train[0]) == np.ndarray:
             X_train_target = np.concatenate(X_train, axis=-1)
         else:
@@ -129,8 +126,8 @@ def run_model(X_train, X_test_list, y_train, y_test_list, dataset, batch_size, e
 
     autoencoder_train = autoencoder_for_training.fit(
         X_train, X_train_target,
-        batch_size = batch_size,
-        epochs = epochs,
+        batch_size = parameters['batch_size'],
+        epochs = parameters['epochs'],
         validation_split=0.2,
         shuffle = True,
         callbacks = callbacks_list_training,
@@ -157,6 +154,8 @@ def run_model(X_train, X_test_list, y_train, y_test_list, dataset, batch_size, e
         shuffle=True,
         callbacks = callbacks_list_classification
     )
+
+    pickle.dump([autoencoder_for_classifier, autoencoder_for_representation], open(f'{PICKLE_DIR}{parameters["id"]}.p'))
 
     pred_train = autoencoder_for_classifier.predict(X_train)
     pred_test_list = []
@@ -329,31 +328,52 @@ def plot_densities(dataset, feature_set, historical_co2, y_pred_test_list, model
     condition_names = ['True Occupant', 'False Non-Occupant', 'True Non-Occupant', 'False Occupant']
     export_suffix = ['TP', 'FN', 'TN', 'FP']
 
-    X_test_1 = X_test_list[0] # Will only work for uci dataset
-    X_test_2 = X_test_list[1]
-    y_test_1 = y_test_list[0]
-    y_test_2 = y_test_list[1]
-    y_pred_test_1 = y_pred_test_list[0].round()
-    y_pred_test_2 = y_pred_test_list[1].round()
+    if dataset == 'uci':
+        X_test_1 = X_test_list[0] # Will only work for uci dataset
+        X_test_2 = X_test_list[1]
+        y_test_1 = y_test_list[0]
+        y_test_2 = y_test_list[1]
+        y_pred_test_1 = y_pred_test_list[0].round()
+        y_pred_test_2 = y_pred_test_list[1].round()
 
-    features = X_test_list[0].select_dtypes(exclude=['category', 'string', 'object']).drop(['MinuteOfDay', 'DayOfWeek', 'WeekOfYear'], axis='columns', errors='ignore').columns
+        features = X_test_list[0].select_dtypes(exclude=['category', 'string', 'object']).drop(['MinuteOfDay', 'DayOfWeek', 'WeekOfYear'], axis='columns', errors='ignore').columns
 
-    fig, axs = plt.subplots(len(features), 4, figsize=(4*4, 3*len(features)))
-    fig.subplots_adjust(hspace=0.3)
-    
-    for row, feature in enumerate(features):
-        for col in range(4):
-            condition_1 = np.all([y_test_1==conditions[col][0], y_pred_test_1==conditions[col][1]], axis=0)
-            condition_2 = np.all([y_test_2==conditions[col][0], y_pred_test_2==conditions[col][1]], axis=0)
+        fig, axs = plt.subplots(len(features), 4, figsize=(4*4, 3*len(features)))
+        fig.subplots_adjust(hspace=0.3)
+        
+        for row, feature in enumerate(features):
+            for col in range(4):
+                condition_1 = np.all([y_test_1==conditions[col][0], y_pred_test_1==conditions[col][1]], axis=0)
+                condition_2 = np.all([y_test_2==conditions[col][0], y_pred_test_2==conditions[col][1]], axis=0)
 
-            if np.count_nonzero(condition_1) > 1:
-                X_test_1.loc[condition_1, feature].plot.kde(ax = axs[row, col], label='Test 1')
-            if np.count_nonzero(condition_2) > 1:
-                X_test_2.loc[condition_2, feature].plot.kde(ax = axs[row, col], label='Test 2')
+                if np.count_nonzero(condition_1) > 1:
+                    X_test_1.loc[condition_1, feature].plot.kde(ax = axs[row, col], label='Test 1')
+                if np.count_nonzero(condition_2) > 1:
+                    X_test_2.loc[condition_2, feature].plot.kde(ax = axs[row, col], label='Test 2')
 
-            axs[row, col].legend()
+                axs[row, col].legend()
 
-        plt.setp(axs[row, 0], ylabel=feature)
+            plt.setp(axs[row, 0], ylabel=feature)
+    else:
+        X_test = X_test_list[0]
+        y_test = y_test_list[0]
+        y_pred_test = y_pred_test_list[0].round()
+
+        features = X_test_list[0].select_dtypes(exclude=['category', 'string', 'object']).drop(['MinuteOfDay', 'DayOfWeek', 'WeekOfYear'], axis='columns', errors='ignore').columns
+
+        fig, axs = plt.subplots(len(features), 4, figsize=(4*4, 3*len(features)))
+        fig.subplots_adjust(hspace=0.3)
+        
+        for row, feature in enumerate(features):
+            for col in range(4):
+                condition = np.all([y_test==conditions[col][0], y_pred_test==conditions[col][1]], axis=0)
+
+                if np.count_nonzero(condition) > 1:
+                    X_test.loc[condition, feature].plot.kde(ax = axs[row, col], label='Test')
+
+                axs[row, col].legend()
+
+            plt.setp(axs[row, 0], ylabel=feature)
 
     for col in range(4):
         plt.setp(axs[-1, col], xlabel=condition_names[col])

@@ -14,7 +14,7 @@ def main():
         #autoencoder_model_2_t2v,
         #autoencoder_model_3_t2v,
         #brick_australia_test_time2vec,
-        graz_autoencoder
+        graz_autoencoder_1
     ]
 
     # Association of models to file, which can execute it
@@ -232,7 +232,22 @@ brick_australia_test_time2vec = {
     'runs': 1,
     'batch_size': 32,
 }
-graz_autoencoder = {
+graz_autoencoder_1 = {
+    'id': 'graz_autoencoder_1',
+    'model_name': 'autoencoder',
+    'dataset': 'Graz',
+    'feature_set': 'light+CO2',
+    'split_data': True,
+    'epochs': 100,
+    'historical_co2': False,
+    'embedding': True,
+    'windowing': False,
+    'runs': 10,
+    'batch_size': 32,
+    'code_size': 2
+}
+graz_autoencoder_2 = {
+    'id': 'graz_autoencoder_2',
     'model_name': 'autoencoder',
     'dataset': 'Graz',
     'feature_set': 'full',
@@ -241,7 +256,21 @@ graz_autoencoder = {
     'historical_co2': False,
     'embedding': False,
     'windowing': False,
-    'runs': 1,
+    'runs': 10,
+    'batch_size': 32,
+    'code_size': 2
+}
+graz_autoencoder_3 = {
+    'id': 'graz_autoencoder_3',
+    'model_name': 'autoencoder',
+    'dataset': 'Graz',
+    'feature_set': 'full',
+    'split_data': True,
+    'epochs': 100,
+    'historical_co2': False,
+    'embedding': True,
+    'windowing': False,
+    'runs': 10,
     'batch_size': 32,
     'code_size': 2
 }
